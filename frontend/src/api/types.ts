@@ -1,0 +1,261 @@
+// Hand-written mirror of the backend schemas the UI consumes.
+// Source of truth: GET /openapi.json  (regenerate by hand when the API changes).
+
+export type ReservationStatus =
+  | "inquiry"
+  | "confirmed"
+  | "in_house"
+  | "checked_out"
+  | "cancelled"
+  | "no_show";
+
+export type ReservationSource =
+  | "direct"
+  | "phone"
+  | "walk_in"
+  | "ota"
+  | "travel_agent"
+  | "other";
+
+export type ChargeCategory =
+  | "room"
+  | "room_service"
+  | "food_beverage"
+  | "tax"
+  | "deposit"
+  | "fee"
+  | "cancellation"
+  | "misc";
+
+export type PaymentMethod =
+  | "cash"
+  | "card_terminal"
+  | "bank_transfer"
+  | "ota_collected"
+  | "voucher"
+  | "other";
+
+export interface Me {
+  id: number;
+  username: string;
+  full_name: string;
+  is_superuser: boolean;
+  permissions: string[];
+}
+
+export interface Token {
+  access_token: string;
+  token_type: string;
+}
+
+export interface Page<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface RoomType {
+  id: number;
+  code: string;
+  name: string;
+  description: string;
+  max_occupancy: number;
+  max_adults: number;
+  standard_occupancy: number;
+  bed_configuration: string;
+  size_sqm: number | null;
+  sort_order: number;
+  is_active: boolean;
+  overbooking_allowance: number;
+}
+
+export interface Room {
+  id: number;
+  number: string;
+  name: string;
+  floor: string;
+  room_type_id: number;
+  is_active: boolean;
+  notes: string;
+}
+
+export interface RatePlanOffer {
+  rate_plan_id: number;
+  rate_plan_code: string;
+  rate_plan_name: string;
+  currency: string;
+  total_minor: number;
+  restrictions: string[];
+  sellable: boolean;
+}
+
+export interface RoomTypeOffer {
+  room_type_id: number;
+  room_type_code: string;
+  room_type_name: string;
+  max_occupancy: number;
+  units_available: number;
+  rate_plans: RatePlanOffer[];
+}
+
+export interface NightRate {
+  date: string;
+  amount_minor: number;
+}
+
+export interface RateQuote {
+  room_type_id: number;
+  rate_plan_id: number;
+  currency: string;
+  arrival: string;
+  departure: string;
+  nights: NightRate[];
+  total_minor: number;
+}
+
+export interface Guest {
+  id: number;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  date_of_birth: string | null;
+  nationality: string;
+  city: string;
+  country: string;
+  company_id: number | null;
+  marketing_consent: boolean;
+  notes: string;
+}
+
+export interface GuestIn {
+  first_name: string;
+  last_name: string;
+  email?: string | null;
+  phone?: string | null;
+  nationality?: string;
+  notes?: string;
+}
+
+export interface RoomLine {
+  id: number;
+  room_type_id: number;
+  rate_plan_id: number;
+  assigned_room_id: number | null;
+  arrival: string;
+  departure: string;
+  adults: number;
+  children: number;
+  guest_name: string;
+  rate_total_minor: number;
+}
+
+export interface Reservation {
+  id: number;
+  reference: string;
+  status: ReservationStatus;
+  source: ReservationSource;
+  channel_name: string;
+  external_reference: string;
+  primary_guest_id: number;
+  company_id: number | null;
+  currency: string;
+  arrival: string;
+  departure: string;
+  total_minor: number;
+  cancellation_note: string;
+  free_cancel_until: string | null;
+  notes: string;
+  checked_in_at: string | null;
+  checked_out_at: string | null;
+  cancelled_at: string | null;
+  rooms: RoomLine[];
+}
+
+export interface ReservationListItem {
+  id: number;
+  reference: string;
+  status: ReservationStatus;
+  primary_guest_id: number;
+  arrival: string;
+  departure: string;
+  total_minor: number;
+  currency: string;
+}
+
+export interface RoomLineIn {
+  room_type_id: number;
+  rate_plan_id: number;
+  arrival: string;
+  departure: string;
+  adults: number;
+  children: number;
+  guest_name?: string;
+}
+
+export interface ReservationCreate {
+  primary_guest_id: number;
+  source?: ReservationSource;
+  channel_name?: string;
+  status?: ReservationStatus;
+  notes?: string;
+  rooms: RoomLineIn[];
+}
+
+export interface ArrivalRow {
+  id: number;
+  reference: string;
+  primary_guest_id: number;
+  arrival: string;
+  departure: string;
+  status: string;
+  unassigned_rooms: number;
+}
+
+export interface FolioLine {
+  id: number;
+  kind: string;
+  category: string;
+  description: string;
+  quantity: number;
+  amount_minor: number;
+  posted_at: string;
+  source: string;
+  reference: string;
+  parent_line_id: number | null;
+  is_void: boolean;
+}
+
+export interface Folio {
+  id: number;
+  reservation_id: number;
+  code: string;
+  status: string;
+  currency: string;
+  is_primary: boolean;
+  lines: FolioLine[];
+  balance_minor: number;
+}
+
+export interface Invoice {
+  id: number;
+  folio_id: number;
+  number: string;
+  issued_at: string;
+  bill_to_name: string;
+  bill_to_address: string;
+  currency: string;
+  total_minor: number;
+  lines_json: Record<string, unknown>[];
+}
+
+export interface Property {
+  id: number;
+  name: string;
+  currency: string;
+  timezone: string;
+  check_in_time: string;
+  check_out_time: string;
+}

@@ -9,3 +9,6 @@ __pycache__/
 .env
 *.log
 .import_linter_cache/
+node_modules/
+app/modules/webui/dist/
+frontend/dist/

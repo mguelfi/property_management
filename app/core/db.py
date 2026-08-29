@@ -7,12 +7,14 @@ Every module's ORM models inherit from :class:`Base`, so they all share one
 from __future__ import annotations
 
 import enum
-from collections.abc import Iterator
 from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, MetaData, create_engine
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.requests import Request
+from starlette.responses import Response
 
 from app.core.config import get_settings
 
@@ -60,14 +62,38 @@ engine = create_engine(
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False, future=True)
 
 
-def get_db() -> Iterator[Session]:
-    """FastAPI dependency: a session that commits on success, rolls back on error."""
-    session = SessionLocal()
-    try:
-        yield session
-        session.commit()
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()
+class DBSessionMiddleware(BaseHTTPMiddleware):
+    """One SQLAlchemy session per request, committed *before* the response is
+    sent.
+
+    FastAPI runs the exit code of a ``yield`` dependency after the response has
+    already gone out, so a commit there is invisible to a client that
+    immediately reads back what it just wrote. Committing here — after the
+    endpoint has produced its response but before Starlette sends it — keeps
+    read-after-write consistent.
+    """
+
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        session = SessionLocal()
+        request.state.db = session
+        try:
+            response = await call_next(request)
+        except Exception:
+            session.rollback()
+            session.close()
+            raise
+        try:
+            if response.status_code < 400:
+                session.commit()
+            else:
+                session.rollback()
+        finally:
+            session.close()
+        return response
+
+
+def get_db(request: Request) -> Session:
+    """FastAPI dependency: the request-scoped session (see ``DBSessionMiddleware``)."""
+    return request.state.db

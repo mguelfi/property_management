@@ -21,11 +21,17 @@ Module(
     permissions=PERMISSIONS,              # (code, description) pairs
     event_handlers=((SomeEvent, handler),),
     on_startup=_startup,                  # register service impls here
+    mount=fn,                            # optional: fn(app) for raw-app needs
 )
 ```
 
 Conventional files per module: `models.py`, `schemas.py`, `router.py`,
 `service.py`, `events.py`, `permissions.py`.
+
+`mount` is an escape hatch for things a router can't express — the `webui`
+module uses it to `StaticFiles`-mount the built SPA and add a client-route
+catch-all. `build_app` runs every module's `mount` in a second pass, after all
+routers are registered, so a catch-all can't shadow `/api/*`.
 
 ### Boundary rule
 
@@ -93,6 +99,11 @@ consumers call `get_service(Interface)` (or the FastAPI deps in
 - **One `Base`/`MetaData`** (`app/core/db.py`); one Alembic history.
 - **Sync SQLAlchemy 2.0.** FastAPI runs sync endpoints in a threadpool. PMS
   concurrency is low; sync keeps locking easy to reason about.
+- **Session per request.** `DBSessionMiddleware` (`app/core/db.py`) opens one
+  session per request on `request.state.db` and commits it (or rolls back on a
+  ≥400 response / exception) **before the response is sent** — a `yield`
+  dependency commits too late for a client that immediately reads back what it
+  wrote. `get_db` just returns `request.state.db`.
 - **Money**: integer `amount_minor` + `currency`; `app/core/money.Money` does
   `Decimal` arithmetic and rounds to the minor unit.
 - **Dates**: half-open `[arrival, departure)`. Helpers in

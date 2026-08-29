@@ -18,6 +18,7 @@ DEFAULT_MODULES = (
     "frontdesk",
     "billing",
     "audit",
+    "webui",
 )
 
 
@@ -34,7 +35,7 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8010
 
-    secret_key: str = "dev-insecure-change-me"
+    secret_key: str = "dev-insecure-secret-key-change-me-in-production"
     access_token_ttl_minutes: int = 480
     jwt_algorithm: str = "HS256"
 

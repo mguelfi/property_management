@@ -6,12 +6,15 @@ housekeeping, channel connectors — slot in as new modules without touching the
 existing ones.
 
 **This build is the core PMS foundation:** take a booking from availability
-search through check-out with a settled folio.
+search through check-out with a settled folio — plus a **staff web UI** for the
+operational core.
 
 - Stack: FastAPI · SQLAlchemy 2.0 (sync) · PostgreSQL · Alembic · Pydantic v2
+- UI: React + Vite + TypeScript SPA (`frontend/`), served by FastAPI in production
 - Scope: single property, self-hosted
 - Auth: JWT bearer tokens + role/permission RBAC
-- API only (JSON + OpenAPI at `/docs`); a rich UI is a later pass
+- JSON API + OpenAPI at `/docs`; the SPA (dashboard, reservations, booking,
+  front desk, folio, guests) at `/`
 
 See `docs/architecture.md` for how the module system works and
 `docs/ADDING_A_MODULE.md` to add one.
@@ -28,6 +31,7 @@ See `docs/architecture.md` for how the module system works and
 | `reservations` | Reservations, room lines + nightly rate snapshots, lifecycle |
 | `frontdesk` | Room assignment, check-in/out, walk-ins, arrivals/departures |
 | `billing` | Folios, charges, taxes, payments, invoices; `PaymentGateway` iface |
+| `webui` | Serves the built React SPA (`frontend/`) with client-route fallback |
 | `audit` | Append-only audit log (subscribes to every domain event) |
 
 Deferred but designed for: `housekeeping`, `channels` (channel-manager
@@ -51,12 +55,20 @@ cp .env.example .env          # adjust PMS_SECRET_KEY at least
 uv run alembic upgrade head
 uv run python -m app.jobs.seed_demo     # prints an admin password
 
+# Build the staff UI (served by the backend). Requires Node 20.19+/22.12+.
+(cd frontend && npm install && npm run build)
+
 uv run python -m app                    # serves on PMS_HOST:PMS_PORT (default 0.0.0.0:8010)
 # or, with autoreload:
 uv run uvicorn app.main:app --reload --port 8010
 ```
 
-Open http://localhost:8010/docs.
+- Staff UI: http://localhost:8010/  (log in with the seeded `admin`)
+- API docs: http://localhost:8010/docs
+
+For UI development with hot reload, run the Vite dev server alongside the
+backend — see `frontend/README.md`. Skip the `npm run build` step and the
+backend simply serves the API (the SPA route 404s until a build exists).
 
 ### Configuration
 
@@ -123,10 +135,14 @@ uv run python -m app.jobs.release_no_shows [--date YYYY-MM-DD]
 ## Quality gates
 
 ```bash
+# backend
 uv run pytest                 # unit + module + e2e (needs pms_test DB)
 uv run ruff check .
 uv run mypy app
 uv run lint-imports           # module boundary contracts (.importlinter)
+
+# frontend
+(cd frontend && npm run typecheck && npm run lint && npm run test)
 ```
 
 `tests/e2e/test_stay_lifecycle.py` covers the walkthrough above;
@@ -141,7 +157,9 @@ app/
               service registry, security/RBAC, money, daterange, errors
   modules/<name>/   __init__.py (Module), models, schemas, router,
                     service, events, permissions
+  modules/webui/    mounts the built SPA (dist/ is git-ignored)
   jobs/       CLI entrypoints (python -m app.jobs.<name>)
+frontend/     React + Vite + TS SPA -> builds to app/modules/webui/dist/
 migrations/   single Alembic history
 tests/        core / modules / e2e
 docs/         architecture.md, ADDING_A_MODULE.md
@@ -153,4 +171,6 @@ docs/         architecture.md, ADDING_A_MODULE.md
 - Stays are half-open date intervals `[arrival, departure)`.
 - Enum columns are stored as checked strings, not native PG enums, so adding a
   value later (new status, payment method, channel) needs no `ALTER TYPE`.
+- One SQLAlchemy session per request (`DBSessionMiddleware`), committed before
+  the response is sent so a client's immediate read-after-write is consistent.
 - `scripts/pg-dev.sh stop` / `destroy` to stop or remove the dev database.

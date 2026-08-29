@@ -9,10 +9,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter
 
 from app.core.events import Event, Handler
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -36,6 +40,10 @@ class Module:
     on_startup: Callable[[], None] | None = None
     """Called once during app startup, after all modules are imported. Use this
     to register service implementations (see ``app.core.service_registry``)."""
+
+    mount: Callable[[FastAPI], None] | None = None
+    """Called with the app after every module router is mounted. For raw-app
+    needs a router can't express (static files, a catch-all route)."""
 
     models_module: str | None = field(default=None)
     """Dotted path to the module's ``models`` submodule, imported eagerly so

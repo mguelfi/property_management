@@ -23,6 +23,25 @@ forbidden_modules =
     app.jobs
 allow_indirect_imports = True
 
+[importlinter:contract:webui-boundaries]
+name = webui only wires the SPA; it imports no feature module
+type = forbidden
+source_modules =
+    app.modules.webui
+forbidden_modules =
+    app.modules.auth
+    app.modules.inventory
+    app.modules.rates
+    app.modules.availability
+    app.modules.guests
+    app.modules.reservations
+    app.modules.frontdesk
+    app.modules.billing
+    app.modules.audit
+    app.jobs
+    app.main
+allow_indirect_imports = True
+
 [importlinter:contract:auth-boundaries]
 name = auth depends on core only
 type = forbidden

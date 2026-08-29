@@ -66,12 +66,14 @@ def import_model_metadata(settings: Settings | None = None) -> None:
 
 
 def build_app(settings: Settings | None = None) -> FastAPI:
+    from app.core.db import DBSessionMiddleware
     from app.core.errors import install_exception_handlers
 
     settings = settings or get_settings()
     modules = load_modules(settings)
 
     app = FastAPI(title="Property Management System", debug=settings.debug)
+    app.add_middleware(DBSessionMiddleware)
     install_exception_handlers(app)
 
     @app.get("/health", tags=["meta"])
@@ -95,5 +97,11 @@ def build_app(settings: Settings | None = None) -> FastAPI:
         if mod.on_startup is not None:
             mod.on_startup()
         logger.info("loaded module: %s", mod.name)
+
+    # Second pass: raw-app mounts (static files, catch-alls) run last so they
+    # cannot shadow an earlier module's routes.
+    for mod in modules:
+        if mod.mount is not None:
+            mod.mount(app)
 
     return app
