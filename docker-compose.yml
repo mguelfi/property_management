@@ -1,0 +1,21 @@
+# Dev Postgres. If you don't have Docker, use scripts/pg-dev.sh instead
+# (spins up a project-local cluster with initdb / pg_ctl, no root needed).
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: pms
+      POSTGRES_PASSWORD: pms
+      POSTGRES_DB: pms
+    ports:
+      - "5432:5432"
+    volumes:
+      - pms_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pms"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pms_pgdata:

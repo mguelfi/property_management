@@ -1,0 +1,149 @@
+[importlinter]
+root_package = app
+include_external_packages = False
+
+[importlinter:contract:core-independent-of-modules]
+name = Core never imports modules, main or jobs
+type = forbidden
+source_modules =
+    app.core
+forbidden_modules =
+    app.modules
+    app.jobs
+    app.main
+allow_indirect_imports = True
+
+[importlinter:contract:modules-independent-of-app-shell]
+name = Modules never import the app shell or jobs
+type = forbidden
+source_modules =
+    app.modules
+forbidden_modules =
+    app.main
+    app.jobs
+allow_indirect_imports = True
+
+[importlinter:contract:auth-boundaries]
+name = auth depends on core only
+type = forbidden
+source_modules =
+    app.modules.auth
+forbidden_modules =
+    app.modules.inventory
+    app.modules.rates
+    app.modules.availability
+    app.modules.guests
+    app.modules.reservations
+    app.modules.frontdesk
+    app.modules.billing
+    app.modules.audit
+allow_indirect_imports = True
+
+[importlinter:contract:guests-boundaries]
+name = guests depends on auth only
+type = forbidden
+source_modules =
+    app.modules.guests
+forbidden_modules =
+    app.modules.inventory
+    app.modules.rates
+    app.modules.availability
+    app.modules.reservations
+    app.modules.frontdesk
+    app.modules.billing
+    app.modules.audit
+allow_indirect_imports = True
+
+[importlinter:contract:inventory-boundaries]
+name = inventory depends on auth only
+type = forbidden
+source_modules =
+    app.modules.inventory
+forbidden_modules =
+    app.modules.rates
+    app.modules.availability
+    app.modules.guests
+    app.modules.reservations
+    app.modules.frontdesk
+    app.modules.billing
+    app.modules.audit
+allow_indirect_imports = True
+
+[importlinter:contract:rates-boundaries]
+name = rates depends on auth, inventory
+type = forbidden
+source_modules =
+    app.modules.rates
+forbidden_modules =
+    app.modules.availability
+    app.modules.guests
+    app.modules.reservations
+    app.modules.frontdesk
+    app.modules.billing
+    app.modules.audit
+allow_indirect_imports = True
+
+[importlinter:contract:availability-boundaries]
+name = availability depends on auth, inventory, rates
+type = forbidden
+source_modules =
+    app.modules.availability
+forbidden_modules =
+    app.modules.guests
+    app.modules.reservations
+    app.modules.frontdesk
+    app.modules.billing
+    app.modules.audit
+allow_indirect_imports = True
+
+[importlinter:contract:reservations-boundaries]
+name = reservations must not know about frontdesk, billing or audit
+type = forbidden
+source_modules =
+    app.modules.reservations
+forbidden_modules =
+    app.modules.frontdesk
+    app.modules.billing
+    app.modules.audit
+allow_indirect_imports = True
+
+[importlinter:contract:billing-boundaries]
+name = billing depends on auth, reservations
+type = forbidden
+source_modules =
+    app.modules.billing
+forbidden_modules =
+    app.modules.inventory
+    app.modules.rates
+    app.modules.availability
+    app.modules.guests
+    app.modules.frontdesk
+    app.modules.audit
+allow_indirect_imports = True
+
+[importlinter:contract:frontdesk-boundaries]
+name = frontdesk depends on auth, reservations, inventory, billing
+type = forbidden
+source_modules =
+    app.modules.frontdesk
+forbidden_modules =
+    app.modules.rates
+    app.modules.availability
+    app.modules.guests
+    app.modules.audit
+allow_indirect_imports = True
+
+[importlinter:contract:audit-boundaries]
+name = audit depends on auth only
+type = forbidden
+source_modules =
+    app.modules.audit
+forbidden_modules =
+    app.modules.inventory
+    app.modules.rates
+    app.modules.availability
+    app.modules.guests
+    app.modules.reservations
+    app.modules.frontdesk
+    app.modules.billing
+allow_indirect_imports = True
