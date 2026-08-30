@@ -59,7 +59,7 @@ describe("AuditEntity", () => {
   });
   it("resolves a room to its number", () => {
     wrap(<AuditEntity ev={ev({ entity_type: "room", entity_id: 2 })} rooms={rooms} />);
-    expect(screen.getByText("102")).toBeInTheDocument();
+    expect(screen.getByText("Room 102")).toBeInTheDocument();
   });
 });
 
@@ -85,7 +85,7 @@ describe("AuditPayload", () => {
       "href",
       "/reservations/4",
     );
-    expect(screen.getByText("101, 102")).toBeInTheDocument();
+    expect(screen.getByText("Room 101, Room 102")).toBeInTheDocument();
     expect(screen.getByText("mike")).toBeInTheDocument();
     expect(screen.queryByText("reference")).not.toBeInTheDocument(); // folded away
   });

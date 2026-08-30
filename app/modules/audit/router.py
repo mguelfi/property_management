@@ -51,12 +51,13 @@ def list_events(
     actor_ids = {r.actor_id for r in rows if r.actor_id is not None}
     usernames: dict[int, str] = {}
     if actor_ids:
-        usernames = {
-            uid: uname
-            for uid, uname in db.execute(
+        usernames = dict(
+            db.execute(
                 select(User.id, User.username).where(User.id.in_(actor_ids))
-            ).all()
-        }
+            )
+            .tuples()
+            .all()
+        )
 
     items: list[AuditEventOut] = []
     for r in rows:

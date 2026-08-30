@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   useAdminBlocks,
-  useAdminRooms,
   useAdminRoomTypes,
   useAuditEvents,
   useBlockAdminActions,
@@ -395,9 +394,9 @@ function AuditTab() {
     offset: page * AUDIT_PAGE,
     limit: AUDIT_PAGE,
   });
-  const roomsQ = useAdminRooms({ q: "", offset: 0, limit: 1000 });
+  const roomsQ = useRooms();
   const rooms: RoomMap = useMemo(
-    () => new Map((roomsQ.data?.items ?? []).map((r) => [r.id, r.number])),
+    () => new Map((roomsQ.data ?? []).map((r) => [r.id, r.number])),
     [roomsQ.data],
   );
   const pages = events.data ? Math.ceil(events.data.total / AUDIT_PAGE) : 0;

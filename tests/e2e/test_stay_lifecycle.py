@@ -84,6 +84,16 @@ def test_full_stay(client, auth_headers, db, world):
     assert checkin.status_code == 200
     assert checkin.json()["status"] == "in_house"
 
+    # 5b. the guest dislikes the room -> move them while already in-house
+    other_room_id = rooms[1]["id"]
+    moved = client.post(
+        f"/api/frontdesk/reservations/{reservation['id']}/rooms/{line_id}/assign",
+        headers=auth_headers,
+        json={"room_id": other_room_id},
+    )
+    assert moved.status_code == 200, moved.text
+    assert moved.json()["rooms"][0]["assigned_room_id"] == other_room_id
+
     # 6. folio + room-service charge (with 10% GST rule)
     client.post(
         "/api/billing/tax-rules",

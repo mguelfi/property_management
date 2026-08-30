@@ -33,12 +33,17 @@ export function AuditEntity({ ev, rooms }: { ev: AuditEvent; rooms: RoomMap }) {
       return resId ? <Link to={`/reservations/${resId}`}>{label}</Link> : <>{label}</>;
     }
     case "room":
-      return <>{rooms.get(id) ?? `Room #${id}`}</>;
+      return <>{roomLabel(id, rooms)}</>;
     case "folio":
       return <Link to={`/folio/${id}`}>{`Folio #${id}`}</Link>;
     default:
       return <>{`${type} #${id}`}</>;
   }
+}
+
+function roomLabel(id: number, rooms: RoomMap): string {
+  const n = rooms.get(id);
+  return n ? `Room ${n}` : `Room #${id}`;
 }
 
 function humanKey(key: string): string {
@@ -54,10 +59,10 @@ function fmtValue(
   if (value === null || value === undefined) return <span className="muted">—</span>;
 
   if (key === "room_ids" && Array.isArray(value)) {
-    return value.map((v) => rooms.get(Number(v)) ?? `#${v}`).join(", ") || "—";
+    return value.map((v) => roomLabel(Number(v), rooms)).join(", ") || "—";
   }
   if ((key === "room_id" || key === "previous_room_id") && typeof value === "number") {
-    return rooms.get(value) ?? `Room #${value}`;
+    return roomLabel(value, rooms);
   }
   if (key === "reservation_id" && typeof value === "number") {
     const ref = typeof ev.payload.reference === "string" ? ev.payload.reference : `#${value}`;

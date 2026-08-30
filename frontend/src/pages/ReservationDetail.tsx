@@ -7,6 +7,7 @@ import {
   useRoomTypeMap,
   useRooms,
 } from "../api/hooks";
+import type { Room } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { FolioPanel } from "../components/FolioPanel";
 import { GuestName } from "../components/GuestName";
@@ -23,8 +24,14 @@ export function ReservationDetail() {
   const toast = useToast();
   const { data: res, isLoading, error } = useReservation(rid);
   const roomTypes = useRoomTypeMap();
+  const allRooms = useRooms();
   const statusActions = useReservationAction(rid);
   const fd = useFrontDeskActions();
+
+  const roomNumbers = useMemo(
+    () => new Map((allRooms.data ?? []).map((r) => [r.id, r.number])),
+    [allRooms.data],
+  );
 
   const unassigned = useMemo(
     () => (res?.rooms ?? []).filter((r) => r.assigned_room_id === null).length,
@@ -104,11 +111,16 @@ export function ReservationDetail() {
                   line={line}
                   typeName={roomTypes.get(line.room_type_id)?.name ?? `Type ${line.room_type_id}`}
                   currency={res.currency}
+                  roomNumbers={roomNumbers}
                   canAssign={canOperate && ["confirmed", "in_house"].includes(res.status)}
                   onAssign={(roomId) =>
                     fd.assign.mutate(
                       { reservationId: rid, lineId: line.id, roomId },
-                      { onSuccess: () => toast.ok("Room assigned"), onError: toast.error },
+                      {
+                        onSuccess: () =>
+                          toast.ok(line.assigned_room_id ? "Room changed" : "Room assigned"),
+                        onError: toast.error,
+                      },
                     )
                   }
                 />
@@ -202,16 +214,22 @@ function RoomLineRow({
   line,
   typeName,
   currency,
+  roomNumbers,
   canAssign,
   onAssign,
 }: {
   line: RoomLine;
   typeName: string;
   currency: string;
+  roomNumbers: Map<number, string>;
   canAssign: boolean;
   onAssign: (roomId: number) => void;
 }) {
-  const rooms = useRooms(canAssign && line.assigned_room_id === null ? line.room_type_id : undefined);
+  const candidates = useRooms(canAssign ? line.room_type_id : undefined);
+  const assignedId = line.assigned_room_id;
+  const assignedLabel =
+    assignedId !== null ? `Room ${roomNumbers.get(assignedId) ?? `#${assignedId}`}` : null;
+
   return (
     <tr>
       <td>{typeName}</td>
@@ -222,17 +240,17 @@ function RoomLineRow({
         {line.adults}a{line.children ? ` ${line.children}c` : ""}
       </td>
       <td>
-        {line.assigned_room_id !== null ? (
-          `#${line.assigned_room_id}`
-        ) : canAssign ? (
+        {canAssign ? (
           <Select
-            options={[
-              ["", "— assign —"],
-              ...(rooms.data ?? []).map((r) => [String(r.id), `Room ${r.number}`] as [string, string]),
-            ]}
-            defaultValue=""
-            onChange={(e) => e.target.value && onAssign(Number(e.target.value))}
+            options={roomOptions(line, candidates.data, roomNumbers)}
+            value={assignedId !== null ? String(assignedId) : ""}
+            onChange={(e) => {
+              const next = e.target.value;
+              if (next && Number(next) !== assignedId) onAssign(Number(next));
+            }}
           />
+        ) : assignedLabel ? (
+          assignedLabel
         ) : (
           <span className="muted">unassigned</span>
         )}
@@ -240,4 +258,29 @@ function RoomLineRow({
       <td className="num-cell">{formatMoney(line.rate_total_minor, currency)}</td>
     </tr>
   );
+}
+
+function roomOptions(
+  line: RoomLine,
+  candidates: Room[] | undefined,
+  roomNumbers: Map<number, string>,
+): [string, string][] {
+  const opts: [string, string][] = [
+    [line.assigned_room_id !== null ? String(line.assigned_room_id) : "", "— assign —"],
+  ];
+  const seen = new Set<number>();
+  // the currently assigned room first, even if it's inactive / a different type
+  if (line.assigned_room_id !== null) {
+    seen.add(line.assigned_room_id);
+    opts[0] = [
+      String(line.assigned_room_id),
+      `Room ${roomNumbers.get(line.assigned_room_id) ?? `#${line.assigned_room_id}`}`,
+    ];
+  }
+  for (const r of candidates ?? []) {
+    if (seen.has(r.id)) continue;
+    seen.add(r.id);
+    opts.push([String(r.id), `Room ${r.number}`]);
+  }
+  return opts;
 }
