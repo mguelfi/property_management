@@ -63,6 +63,15 @@ class TaxRuleIn(BaseModel):
     sort_order: int = 100
 
 
+class TaxRuleUpdate(BaseModel):
+    name: str | None = None
+    percent: Decimal | None = Field(default=None, ge=0)
+    fixed_minor: int | None = Field(default=None, ge=0)
+    applies_to_categories: list[ChargeCategory] | None = None
+    is_active: bool | None = None
+    sort_order: int | None = None
+
+
 class TaxRuleOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int

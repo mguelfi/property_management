@@ -32,6 +32,17 @@ from .sync_permissions import sync_permissions
 
 ROLE_PERMISSIONS = {
     "manager": "*",
+    "administrator": [
+        "auth.manage_users",
+        "auth.manage_roles",
+        "inventory.view",
+        "inventory.manage",
+        "rates.view",
+        "rates.manage",
+        "billing.view",
+        "billing.manage_tax",
+        "audit.view",
+    ],
     "front_desk": [
         "inventory.view",
         "rates.view",

@@ -11,13 +11,14 @@ from app.core.db import get_db
 from app.core.rbac import require
 
 from . import service
-from .models import RateCalendar, RatePlan
+from .models import RateCalendar, RatePlan, RateRestriction
 from .schemas import (
     RateBulkSet,
     RateCalendarRow,
     RatePlanIn,
     RatePlanOut,
     RatePlanUpdate,
+    RateRestrictionRow,
     RestrictionBulkSet,
 )
 
@@ -76,6 +77,24 @@ def get_calendar(
     if room_type_id is not None:
         stmt = stmt.where(RateCalendar.room_type_id == room_type_id)
     return list(db.scalars(stmt.order_by(RateCalendar.date, RateCalendar.room_type_id)))
+
+
+@router.get("/restrictions", response_model=list[RateRestrictionRow], dependencies=[view])
+def get_restrictions(
+    db: DbDep,
+    rate_plan_id: Annotated[int, Query()],
+    start_date: Annotated[date, Query()],
+    end_date: Annotated[date, Query()],
+    room_type_id: Annotated[int | None, Query()] = None,
+) -> list[RateRestriction]:
+    stmt = select(RateRestriction).where(
+        RateRestriction.rate_plan_id == rate_plan_id,
+        RateRestriction.date >= start_date,
+        RateRestriction.date < end_date,
+    )
+    if room_type_id is not None:
+        stmt = stmt.where(RateRestriction.room_type_id == room_type_id)
+    return list(db.scalars(stmt.order_by(RateRestriction.date, RateRestriction.room_type_id)))
 
 
 @router.put("/restrictions", dependencies=[manage])

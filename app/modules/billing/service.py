@@ -266,3 +266,51 @@ class FolioServiceImpl:
 
 
 service_impl = FolioServiceImpl()
+
+
+# --------------------------------------------------------------------------- #
+# Tax rules
+# --------------------------------------------------------------------------- #
+
+
+def get_tax_rule(session: Session, rule_id: int) -> TaxRule:
+    rule = session.get(TaxRule, rule_id)
+    if rule is None:
+        raise NotFound("Tax rule not found")
+    return rule
+
+
+def create_tax_rule(session: Session, data: dict) -> TaxRule:
+    rule = TaxRule(
+        name=data["name"],
+        percent=data.get("percent"),
+        fixed_minor=data.get("fixed_minor"),
+        applies_to_categories=[
+            c.value if isinstance(c, ChargeCategory) else c
+            for c in data.get("applies_to_categories", [])
+        ],
+        is_active=data.get("is_active", True),
+        sort_order=data.get("sort_order", 100),
+    )
+    session.add(rule)
+    session.flush()
+    return rule
+
+
+def update_tax_rule(session: Session, rule_id: int, changes: dict) -> TaxRule:
+    rule = get_tax_rule(session, rule_id)
+    if "applies_to_categories" in changes:
+        cats = changes.pop("applies_to_categories")
+        rule.applies_to_categories = [
+            c.value if isinstance(c, ChargeCategory) else c for c in cats
+        ]
+    for key, value in changes.items():
+        if value is not None:
+            setattr(rule, key, value)
+    session.flush()
+    return rule
+
+
+def delete_tax_rule(session: Session, rule_id: int) -> None:
+    session.delete(get_tax_rule(session, rule_id))
+    session.flush()

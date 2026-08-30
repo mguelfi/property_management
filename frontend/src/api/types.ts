@@ -78,6 +78,8 @@ export interface Room {
   room_type_id: number;
   is_active: boolean;
   notes: string;
+  adjoining_room_id: number | null;
+  adjoining_room_number: string | null;
 }
 
 export interface RatePlanOffer {
@@ -254,8 +256,118 @@ export interface Invoice {
 export interface Property {
   id: number;
   name: string;
+  legal_name: string;
+  address_line1: string;
+  address_line2: string;
+  city: string;
+  region: string;
+  postcode: string;
+  country: string;
   currency: string;
   timezone: string;
+  phone: string;
+  email: string;
   check_in_time: string;
   check_out_time: string;
+}
+
+// -- admin -------------------------------------------------------------- //
+
+export interface Permission {
+  code: string;
+  description: string;
+}
+
+export interface Role {
+  id: number;
+  code: string;
+  name: string;
+  description: string;
+  permissions: Permission[];
+}
+
+export interface AdminUser {
+  id: number;
+  username: string;
+  email: string | null;
+  full_name: string;
+  is_active: boolean;
+  is_superuser: boolean;
+  roles: Role[];
+}
+
+export interface PasswordResetResult {
+  password: string | null;
+}
+
+export type BlockReason = "out_of_order" | "maintenance" | "hold" | "other";
+
+export interface RoomBlock {
+  id: number;
+  room_id: number | null;
+  room_type_id: number | null;
+  units: number;
+  start_date: string;
+  end_date: string;
+  reason: BlockReason;
+  note: string;
+}
+
+export type MealPlan = "room_only" | "breakfast" | "half_board" | "full_board";
+export type DerivedMode = "percent" | "amount";
+
+export interface RatePlan {
+  id: number;
+  code: string;
+  name: string;
+  description: string;
+  currency: string;
+  meal_plan: MealPlan;
+  is_active: boolean;
+  is_derived: boolean;
+  parent_rate_plan_id: number | null;
+  derived_mode: DerivedMode | null;
+  derived_value: string | null;
+  free_cancel_until_days: number;
+  cancellation_penalty_nights: number;
+  cancellation_note: string;
+  room_type_ids: number[];
+}
+
+export interface RateCalendarRow {
+  date: string;
+  room_type_id: number;
+  rate_plan_id: number;
+  amount_minor: number;
+}
+
+export interface RateRestrictionRow {
+  date: string;
+  room_type_id: number;
+  rate_plan_id: number;
+  min_stay: number;
+  max_stay: number | null;
+  closed: boolean;
+  closed_to_arrival: boolean;
+  closed_to_departure: boolean;
+}
+
+export interface TaxRule {
+  id: number;
+  name: string;
+  percent: string | null;
+  fixed_minor: number | null;
+  applies_to_categories: string[];
+  is_active: boolean;
+  sort_order: number;
+}
+
+export interface AuditEvent {
+  id: number;
+  event_type: string;
+  actor_id: number | null;
+  entity_type: string;
+  entity_id: number | null;
+  occurred_at: string;
+  payload: Record<string, unknown>;
 }

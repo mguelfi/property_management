@@ -58,8 +58,14 @@ class Room(Base, TimestampMixin):
     room_type_id: Mapped[int] = mapped_column(ForeignKey("inv_room_types.id"), index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     notes: Mapped[str] = mapped_column(Text, default="")
+    adjoining_room_id: Mapped[int | None] = mapped_column(
+        ForeignKey("inv_rooms.id"), index=True, nullable=True
+    )
 
     room_type: Mapped[RoomType] = relationship(back_populates="rooms", lazy="joined")
+    adjoining_room: Mapped[Room | None] = relationship(
+        "Room", remote_side=[id], foreign_keys=[adjoining_room_id], lazy="joined"
+    )
 
 
 class BlockReason(enum.StrEnum):

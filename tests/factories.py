@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.security import hash_password
+from app.modules.auth.models import Permission, Role, User
 from app.modules.guests.models import Guest
 from app.modules.inventory.models import Property, Room, RoomType
 from app.modules.rates import service as rates_service
@@ -78,6 +81,51 @@ def make_rate_plan(
             amount_minor=nightly_minor,
         )
     return plan
+
+
+def _perms(db: Session, codes: tuple[str, ...]) -> list[Permission]:
+    out: list[Permission] = []
+    for code in codes:
+        perm = db.scalar(select(Permission).where(Permission.code == code))
+        if perm is None:
+            perm = Permission(code=code, description=code)
+            db.add(perm)
+            db.flush()
+        out.append(perm)
+    return out
+
+
+def make_role(
+    db: Session, *, code: str = "staff", permissions: tuple[str, ...] = ()
+) -> Role:
+    role = Role(code=code, name=code.replace("_", " ").title())
+    role.permissions = _perms(db, permissions)
+    db.add(role)
+    db.flush()
+    return role
+
+
+def make_user(
+    db: Session,
+    *,
+    username: str = "u1",
+    password: str = "password123",
+    permissions: tuple[str, ...] = (),
+    is_superuser: bool = False,
+    is_active: bool = True,
+) -> User:
+    user = User(
+        username=username,
+        full_name=username.title(),
+        hashed_password=hash_password(password),
+        is_superuser=is_superuser,
+        is_active=is_active,
+    )
+    if permissions:
+        user.roles = [make_role(db, code=f"{username}_role", permissions=permissions)]
+    db.add(user)
+    db.flush()
+    return user
 
 
 def make_guest(db: Session, *, last_name: str = "Tester") -> Guest:

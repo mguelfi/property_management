@@ -31,6 +31,7 @@ class RoleCreate(BaseModel):
 
 
 class RoleUpdate(BaseModel):
+    code: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]*$", max_length=50)
     name: str | None = None
     description: str | None = None
     permission_codes: list[str] | None = None
@@ -57,11 +58,22 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
+    username: str | None = Field(default=None, pattern=r"^[a-zA-Z0-9_.-]{3,50}$")
     email: EmailStr | None = None
     full_name: str | None = None
     is_active: bool | None = None
+    is_superuser: bool | None = None
     password: str | None = Field(default=None, min_length=8, max_length=128)
     role_codes: list[str] | None = None
+
+
+class PasswordReset(BaseModel):
+    password: str | None = Field(default=None, min_length=8, max_length=128)
+
+
+class PasswordResetResult(BaseModel):
+    password: str | None = None
+    """The generated password, present only when the caller did not supply one."""
 
 
 class MeOut(BaseModel):

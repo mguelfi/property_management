@@ -102,6 +102,7 @@ class RoomUpdate(BaseModel):
     room_type_id: int | None = None
     is_active: bool | None = None
     notes: str | None = None
+    adjoining_room_id: int | None = None
 
 
 class RoomOut(BaseModel):
@@ -113,6 +114,8 @@ class RoomOut(BaseModel):
     room_type_id: int
     is_active: bool
     notes: str
+    adjoining_room_id: int | None = None
+    adjoining_room_number: str | None = None
 
 
 class RoomBlockIn(BaseModel):
@@ -131,6 +134,14 @@ class RoomBlockIn(BaseModel):
         if (self.room_id is None) == (self.room_type_id is None):
             raise ValueError("exactly one of room_id or room_type_id is required")
         return self
+
+
+class RoomBlockUpdate(BaseModel):
+    units: int | None = Field(default=None, ge=1)
+    start_date: date | None = None
+    end_date: date | None = None
+    reason: BlockReason | None = None
+    note: str | None = None
 
 
 class RoomBlockOut(BaseModel):

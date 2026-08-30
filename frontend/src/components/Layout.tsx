@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { ADMIN_CODES } from "../auth/permissions";
 
 const NAV = [
   { to: "/", label: "Dashboard", end: true },
@@ -10,8 +11,9 @@ const NAV = [
 ];
 
 export function Layout() {
-  const { me, logout } = useAuth();
+  const { me, logout, can } = useAuth();
   const navigate = useNavigate();
+  const showAdmin = ADMIN_CODES.some((c) => can(c));
 
   return (
     <div className="app-shell">
@@ -23,6 +25,11 @@ export function Layout() {
               {n.label}
             </NavLink>
           ))}
+          {showAdmin && (
+            <NavLink to="/admin" className="nav-link">
+              Admin
+            </NavLink>
+          )}
         </nav>
         <a className="nav-link nav-link-muted" href="/docs" target="_blank" rel="noreferrer">
           Admin API ↗

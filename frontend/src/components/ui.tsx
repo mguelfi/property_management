@@ -1,4 +1,9 @@
-import type { ReactNode, SelectHTMLAttributes, InputHTMLAttributes } from "react";
+import type {
+  ReactNode,
+  SelectHTMLAttributes,
+  InputHTMLAttributes,
+  TextareaHTMLAttributes,
+} from "react";
 import type { ReservationStatus } from "../api/types";
 
 export function Spinner({ label = "Loading…" }: { label?: string }) {
@@ -57,6 +62,64 @@ export function Field({
 
 export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input className="input" {...props} />;
+}
+
+export function Textarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea className="input" rows={3} {...props} />;
+}
+
+export function Tabs({
+  tabs,
+  active,
+  onChange,
+}: {
+  tabs: [string, string][];
+  active: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="tabs">
+      {tabs.map(([value, label]) => (
+        <button
+          key={value}
+          type="button"
+          className={`tab ${active === value ? "active" : ""}`}
+          onClick={() => onChange(value)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function Pagination({
+  page,
+  pages,
+  onPage,
+}: {
+  page: number;
+  pages: number;
+  onPage: (page: number) => void;
+}) {
+  if (pages <= 1) return null;
+  return (
+    <div className="btn-row" style={{ marginTop: 12 }}>
+      <button className="btn btn-sm" disabled={page === 0} onClick={() => onPage(page - 1)}>
+        ← Prev
+      </button>
+      <span className="muted" style={{ alignSelf: "center" }}>
+        Page {page + 1} / {pages}
+      </span>
+      <button
+        className="btn btn-sm"
+        disabled={page + 1 >= pages}
+        onClick={() => onPage(page + 1)}
+      >
+        Next →
+      </button>
+    </div>
+  );
 }
 
 export function Select({

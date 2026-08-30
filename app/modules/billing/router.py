@@ -20,6 +20,7 @@ from .schemas import (
     PaymentIn,
     TaxRuleIn,
     TaxRuleOut,
+    TaxRuleUpdate,
     VoidIn,
 )
 
@@ -114,14 +115,19 @@ def list_tax_rules(db: DbDep) -> list[TaxRule]:
 
 @router.post("/tax-rules", response_model=TaxRuleOut, status_code=201, dependencies=[manage_tax])
 def create_tax_rule(payload: TaxRuleIn, db: DbDep) -> TaxRule:
-    rule = TaxRule(
-        name=payload.name,
-        percent=payload.percent,
-        fixed_minor=payload.fixed_minor,
-        applies_to_categories=[c.value for c in payload.applies_to_categories],
-        is_active=payload.is_active,
-        sort_order=payload.sort_order,
-    )
-    db.add(rule)
-    db.flush()
-    return rule
+    return service.create_tax_rule(db, payload.model_dump())
+
+
+@router.get("/tax-rules/{rule_id}", response_model=TaxRuleOut, dependencies=[view])
+def get_tax_rule(rule_id: int, db: DbDep) -> TaxRule:
+    return service.get_tax_rule(db, rule_id)
+
+
+@router.patch("/tax-rules/{rule_id}", response_model=TaxRuleOut, dependencies=[manage_tax])
+def update_tax_rule(rule_id: int, payload: TaxRuleUpdate, db: DbDep) -> TaxRule:
+    return service.update_tax_rule(db, rule_id, payload.model_dump(exclude_unset=True))
+
+
+@router.delete("/tax-rules/{rule_id}", status_code=204, dependencies=[manage_tax])
+def delete_tax_rule(rule_id: int, db: DbDep) -> None:
+    service.delete_tax_rule(db, rule_id)

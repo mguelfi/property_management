@@ -1,20 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type {
+  AdminUser,
   ArrivalRow,
+  AuditEvent,
   Folio,
   Guest,
   Invoice,
   Page,
+  Permission,
   Property,
+  RateCalendarRow,
+  RatePlan,
   RateQuote,
+  RateRestrictionRow,
   Reservation,
   ReservationCreate,
   ReservationListItem,
   ReservationStatus,
+  Role,
   Room,
+  RoomBlock,
   RoomType,
   RoomTypeOffer,
+  TaxRule,
 } from "./types";
 
 // -- inventory / property ------------------------------------------------- //
@@ -286,3 +295,346 @@ export function useFolioActions(reservationId: number, folioId: number | undefin
     }),
   };
 }
+
+// -- admin: users & roles ------------------------------------------------ //
+
+export const useAdminUsers = (q: string, offset: number, limit: number) =>
+  useQuery({
+    queryKey: ["admin-users", q, offset, limit],
+    queryFn: () =>
+      api<Page<AdminUser>>("/api/auth/users", {
+        query: { q: q || undefined, offset, limit },
+      }),
+  });
+
+export const useAdminRoles = (q?: string) =>
+  useQuery({
+    queryKey: ["admin-roles", q ?? ""],
+    queryFn: () =>
+      api<Page<Role>>("/api/auth/roles", { query: { q: q || undefined, limit: 200 } }),
+    staleTime: 60_000,
+  });
+
+export const usePermissions = () =>
+  useQuery({
+    queryKey: ["permissions"],
+    queryFn: () => api<Permission[]>("/api/auth/permissions"),
+    staleTime: 5 * 60_000,
+  });
+
+export function useUserAdminActions() {
+  const qc = useQueryClient();
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["admin-users"] });
+    qc.invalidateQueries({ queryKey: ["me"] });
+  };
+  return {
+    create: useMutation({
+      mutationFn: (body: Record<string, unknown>) =>
+        api<AdminUser>("/api/auth/users", { method: "POST", body }),
+      onSuccess: invalidate,
+    }),
+    update: useMutation({
+      mutationFn: (v: { id: number; body: Record<string, unknown> }) =>
+        api<AdminUser>(`/api/auth/users/${v.id}`, { method: "PATCH", body: v.body }),
+      onSuccess: invalidate,
+    }),
+    resetPassword: useMutation({
+      mutationFn: (v: { id: number; password?: string }) =>
+        api<{ password: string | null }>(`/api/auth/users/${v.id}/reset-password`, {
+          method: "POST",
+          body: { password: v.password || undefined },
+        }),
+    }),
+    deactivate: useMutation({
+      mutationFn: (id: number) =>
+        api<void>(`/api/auth/users/${id}`, { method: "DELETE" }),
+      onSuccess: invalidate,
+    }),
+  };
+}
+
+export function useRoleAdminActions() {
+  const qc = useQueryClient();
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["admin-roles"] });
+    qc.invalidateQueries({ queryKey: ["permissions"] });
+    qc.invalidateQueries({ queryKey: ["me"] });
+  };
+  return {
+    create: useMutation({
+      mutationFn: (body: Record<string, unknown>) =>
+        api<Role>("/api/auth/roles", { method: "POST", body }),
+      onSuccess: invalidate,
+    }),
+    update: useMutation({
+      mutationFn: (v: { id: number; body: Record<string, unknown> }) =>
+        api<Role>(`/api/auth/roles/${v.id}`, { method: "PATCH", body: v.body }),
+      onSuccess: invalidate,
+    }),
+    remove: useMutation({
+      mutationFn: (id: number) => api<void>(`/api/auth/roles/${id}`, { method: "DELETE" }),
+      onSuccess: invalidate,
+    }),
+  };
+}
+
+// -- admin: rooms ------------------------------------------------------- //
+
+export const useAdminRoomTypes = () =>
+  useQuery({
+    queryKey: ["admin-room-types"],
+    queryFn: () =>
+      api<RoomType[]>("/api/inventory/room-types", { query: { include_inactive: true } }),
+    staleTime: 60_000,
+  });
+
+export const useAdminRooms = (f: {
+  q: string;
+  floor?: string;
+  roomTypeId?: number;
+  isActive?: boolean;
+  offset: number;
+  limit: number;
+}) =>
+  useQuery({
+    queryKey: ["admin-rooms", f],
+    queryFn: () =>
+      api<Page<Room>>("/api/inventory/rooms/paginated", {
+        query: {
+          q: f.q || undefined,
+          floor: f.floor || undefined,
+          room_type_id: f.roomTypeId,
+          is_active: f.isActive,
+          offset: f.offset,
+          limit: f.limit,
+        },
+      }),
+  });
+
+export const useFloors = () =>
+  useQuery({
+    queryKey: ["floors"],
+    queryFn: () => api<string[]>("/api/inventory/rooms/floors"),
+    staleTime: 60_000,
+  });
+
+export function useRoomTypeAdminActions() {
+  const qc = useQueryClient();
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["admin-room-types"] });
+    qc.invalidateQueries({ queryKey: ["room-types"] });
+  };
+  return {
+    create: useMutation({
+      mutationFn: (body: Record<string, unknown>) =>
+        api<RoomType>("/api/inventory/room-types", { method: "POST", body }),
+      onSuccess: invalidate,
+    }),
+    update: useMutation({
+      mutationFn: (v: { id: number; body: Record<string, unknown> }) =>
+        api<RoomType>(`/api/inventory/room-types/${v.id}`, { method: "PATCH", body: v.body }),
+      onSuccess: invalidate,
+    }),
+    deactivate: useMutation({
+      mutationFn: (id: number) =>
+        api<void>(`/api/inventory/room-types/${id}`, { method: "DELETE" }),
+      onSuccess: invalidate,
+    }),
+  };
+}
+
+export function useRoomAdminActions() {
+  const qc = useQueryClient();
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["admin-rooms"] });
+    qc.invalidateQueries({ queryKey: ["rooms"] });
+    qc.invalidateQueries({ queryKey: ["floors"] });
+  };
+  return {
+    create: useMutation({
+      mutationFn: (body: Record<string, unknown>) =>
+        api<Room>("/api/inventory/rooms", { method: "POST", body }),
+      onSuccess: invalidate,
+    }),
+    update: useMutation({
+      mutationFn: (v: { id: number; body: Record<string, unknown> }) =>
+        api<Room>(`/api/inventory/rooms/${v.id}`, { method: "PATCH", body: v.body }),
+      onSuccess: invalidate,
+    }),
+    deactivate: useMutation({
+      mutationFn: (id: number) => api<void>(`/api/inventory/rooms/${id}`, { method: "DELETE" }),
+      onSuccess: invalidate,
+    }),
+    setAdjoining: useMutation({
+      mutationFn: (v: { id: number; adjoining_room_id: number | null }) =>
+        api<Room>(`/api/inventory/rooms/${v.id}`, {
+          method: "PATCH",
+          body: { adjoining_room_id: v.adjoining_room_id },
+        }),
+      onSuccess: invalidate,
+    }),
+  };
+}
+
+// -- admin: rates & tax ----------------------------------------------- //
+
+export const useRatePlans = () =>
+  useQuery({
+    queryKey: ["rate-plans"],
+    queryFn: () => api<RatePlan[]>("/api/rates/plans"),
+    staleTime: 60_000,
+  });
+
+export const useRateCalendar = (
+  planId: number | undefined,
+  rtId: number | undefined,
+  start: string,
+  end: string,
+) =>
+  useQuery({
+    queryKey: ["rate-calendar", planId, rtId, start, end],
+    queryFn: () =>
+      api<RateCalendarRow[]>("/api/rates/calendar", {
+        query: { rate_plan_id: planId, room_type_id: rtId, start_date: start, end_date: end },
+      }),
+    enabled: !!planId && !!start && !!end,
+  });
+
+export const useRateRestrictions = (
+  planId: number | undefined,
+  rtId: number | undefined,
+  start: string,
+  end: string,
+) =>
+  useQuery({
+    queryKey: ["rate-restrictions", planId, rtId, start, end],
+    queryFn: () =>
+      api<RateRestrictionRow[]>("/api/rates/restrictions", {
+        query: { rate_plan_id: planId, room_type_id: rtId, start_date: start, end_date: end },
+      }),
+    enabled: !!planId && !!start && !!end,
+  });
+
+export const useTaxRules = () =>
+  useQuery({
+    queryKey: ["tax-rules"],
+    queryFn: () => api<TaxRule[]>("/api/billing/tax-rules"),
+    staleTime: 60_000,
+  });
+
+export function useRatePlanAdminActions() {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["rate-plans"] });
+  return {
+    create: useMutation({
+      mutationFn: (body: Record<string, unknown>) =>
+        api<RatePlan>("/api/rates/plans", { method: "POST", body }),
+      onSuccess: invalidate,
+    }),
+    update: useMutation({
+      mutationFn: (v: { id: number; body: Record<string, unknown> }) =>
+        api<RatePlan>(`/api/rates/plans/${v.id}`, { method: "PATCH", body: v.body }),
+      onSuccess: invalidate,
+    }),
+  };
+}
+
+export function useRateGridActions() {
+  const qc = useQueryClient();
+  return {
+    setRates: useMutation({
+      mutationFn: (body: Record<string, unknown>) =>
+        api<{ updated: number }>("/api/rates/calendar", { method: "PUT", body }),
+      onSuccess: () => qc.invalidateQueries({ queryKey: ["rate-calendar"] }),
+    }),
+    setRestrictions: useMutation({
+      mutationFn: (body: Record<string, unknown>) =>
+        api<{ updated: number }>("/api/rates/restrictions", { method: "PUT", body }),
+      onSuccess: () => qc.invalidateQueries({ queryKey: ["rate-restrictions"] }),
+    }),
+  };
+}
+
+export function useTaxRuleActions() {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["tax-rules"] });
+  return {
+    create: useMutation({
+      mutationFn: (body: Record<string, unknown>) =>
+        api<TaxRule>("/api/billing/tax-rules", { method: "POST", body }),
+      onSuccess: invalidate,
+    }),
+    update: useMutation({
+      mutationFn: (v: { id: number; body: Record<string, unknown> }) =>
+        api<TaxRule>(`/api/billing/tax-rules/${v.id}`, { method: "PATCH", body: v.body }),
+      onSuccess: invalidate,
+    }),
+    remove: useMutation({
+      mutationFn: (id: number) =>
+        api<void>(`/api/billing/tax-rules/${id}`, { method: "DELETE" }),
+      onSuccess: invalidate,
+    }),
+  };
+}
+
+// -- admin: property, blocks, audit --------------------------------- //
+
+export function usePropertyActions() {
+  const qc = useQueryClient();
+  return {
+    update: useMutation({
+      mutationFn: (body: Record<string, unknown>) =>
+        api<Property>("/api/inventory/property", { method: "PATCH", body }),
+      onSuccess: () => qc.invalidateQueries({ queryKey: ["property"] }),
+    }),
+  };
+}
+
+export const useAdminBlocks = () =>
+  useQuery({
+    queryKey: ["blocks"],
+    queryFn: () => api<RoomBlock[]>("/api/inventory/blocks"),
+  });
+
+export function useBlockAdminActions() {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["blocks"] });
+  return {
+    create: useMutation({
+      mutationFn: (body: Record<string, unknown>) =>
+        api<RoomBlock>("/api/inventory/blocks", { method: "POST", body }),
+      onSuccess: invalidate,
+    }),
+    update: useMutation({
+      mutationFn: (v: { id: number; body: Record<string, unknown> }) =>
+        api<RoomBlock>(`/api/inventory/blocks/${v.id}`, { method: "PATCH", body: v.body }),
+      onSuccess: invalidate,
+    }),
+    remove: useMutation({
+      mutationFn: (id: number) => api<void>(`/api/inventory/blocks/${id}`, { method: "DELETE" }),
+      onSuccess: invalidate,
+    }),
+  };
+}
+
+export const useAuditEvents = (f: {
+  entity_type?: string;
+  entity_id?: number;
+  event_type?: string;
+  offset: number;
+  limit: number;
+}) =>
+  useQuery({
+    queryKey: ["audit-events", f],
+    queryFn: () =>
+      api<Page<AuditEvent>>("/api/audit/events", {
+        query: {
+          entity_type: f.entity_type || undefined,
+          entity_id: f.entity_id,
+          event_type: f.event_type || undefined,
+          offset: f.offset,
+          limit: f.limit,
+        },
+      }),
+  });

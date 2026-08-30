@@ -103,3 +103,15 @@ class RateCalendarRow(BaseModel):
     room_type_id: int
     rate_plan_id: int
     amount_minor: int
+
+
+class RateRestrictionRow(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    date: date
+    room_type_id: int
+    rate_plan_id: int
+    min_stay: int
+    max_stay: int | None
+    closed: bool
+    closed_to_arrival: bool
+    closed_to_departure: bool
