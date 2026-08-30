@@ -209,7 +209,10 @@ function RatePlanModal({
       <form onSubmit={submit}>
         <div className="form-row">
           {!plan && (
-            <Field label="Code">
+            <Field
+              label="Code"
+              help="Short unique identifier for the rate plan (e.g. BAR, NONREF, CORP). Used in reports and channel connections. Cannot be changed after creation."
+            >
               <TextInput
                 required
                 pattern="[A-Za-z0-9_-]{2,30}"
@@ -218,11 +221,14 @@ function RatePlanModal({
               />
             </Field>
           )}
-          <Field label="Name">
+          <Field label="Name" help="Guest-facing name of the rate plan, e.g. 'Best Available Rate'.">
             <TextInput required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
           </Field>
           {!plan && (
-            <Field label="Currency">
+            <Field
+              label="Currency"
+              help="ISO currency code (3 letters) this plan is priced in. Must match the property currency to be bookable. Cannot be changed after creation."
+            >
               <TextInput
                 required
                 maxLength={3}
@@ -232,13 +238,16 @@ function RatePlanModal({
             </Field>
           )}
         </div>
-        <Field label="Description">
+        <Field label="Description" help="Optional internal notes about when to use this plan.">
           <Textarea
             value={f.description}
             onChange={(e) => setF({ ...f, description: e.target.value })}
           />
         </Field>
-        <Field label="Meal plan">
+        <Field
+          label="Meal plan"
+          help="What's included in the nightly price: room only, or room plus breakfast / half board (breakfast + dinner) / full board (all meals)."
+        >
           <Select
             value={f.meal_plan}
             onChange={(e) => setF({ ...f, meal_plan: e.target.value })}
@@ -250,7 +259,10 @@ function RatePlanModal({
             ]}
           />
         </Field>
-        <Field label="Room types">
+        <Field
+          label="Room types"
+          help="Which room types this rate plan can be sold for. A plan with no room types cannot be booked."
+        >
           <div className="perm-grid">
             {types.map((t) => (
               <label key={t.id} className="perm-item">
@@ -264,7 +276,11 @@ function RatePlanModal({
             ))}
           </div>
         </Field>
-        <Field label="Derived from" hint="Leave blank for a standalone plan">
+        <Field
+          label="Derived from"
+          hint="Leave blank for a standalone plan"
+          help="Base this plan's prices on another plan (e.g. NONREF = BAR minus 10%). Its rate calendar is calculated from the parent, not set directly."
+        >
           <Select
             value={f.parent_rate_plan_id ? String(f.parent_rate_plan_id) : ""}
             onChange={(e) =>
@@ -283,7 +299,10 @@ function RatePlanModal({
         </Field>
         {f.parent_rate_plan_id && (
           <div className="form-row">
-            <Field label="Derived mode">
+            <Field
+              label="Derived mode"
+              help="'Percent' adjusts the parent price by a percentage; 'Fixed amount' adds or subtracts a set amount (in minor units, e.g. cents)."
+            >
               <Select
                 value={f.derived_mode ?? "percent"}
                 onChange={(e) => setF({ ...f, derived_mode: e.target.value as "percent" | "amount" })}
@@ -293,7 +312,10 @@ function RatePlanModal({
                 ]}
               />
             </Field>
-            <Field label="Derived value">
+            <Field
+              label="Derived value"
+              help="The adjustment applied to the parent price. Negative discounts, positive marks up. Percent: -10 = 10% cheaper. Amount: -1000 = $10.00 less."
+            >
               <TextInput
                 value={f.derived_value ?? ""}
                 onChange={(e) => setF({ ...f, derived_value: e.target.value })}
@@ -301,7 +323,10 @@ function RatePlanModal({
             </Field>
           </div>
         )}
-        <Field label="Cancellation note">
+        <Field
+          label="Cancellation note"
+          help="Free-text cancellation policy shown to the guest and snapshotted onto each reservation at booking time."
+        >
           <Textarea
             value={f.cancellation_note}
             onChange={(e) => setF({ ...f, cancellation_note: e.target.value })}
@@ -407,10 +432,14 @@ function CalendarTab({ kind }: { kind: "calendar" | "restrictions" }) {
               ]}
             />
           </Field>
-          <Field label="From">
+          <Field label="From" help="First night of the range to view or edit (inclusive).">
             <TextInput type="date" value={start} onChange={(e) => setStart(e.target.value)} />
           </Field>
-          <Field label="To" hint="exclusive">
+          <Field
+            label="To"
+            hint="exclusive"
+            help="Night after the last one you want to affect. A stay is [arrival, departure), so 'To' is the checkout date — that night is not included."
+          >
             <TextInput type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
           </Field>
         </div>
@@ -421,7 +450,10 @@ function CalendarTab({ kind }: { kind: "calendar" | "restrictions" }) {
         <form onSubmit={applyRange}>
           <div className="form-row">
             {kind === "calendar" ? (
-              <Field label={`Amount (${currency})`}>
+              <Field
+                label={`Amount (${currency})`}
+                help="Nightly price to apply to every night in the range, in major units (e.g. 150.00). This is the GST-inclusive sell price."
+              >
                 <TextInput
                   required
                   value={amount}
@@ -431,7 +463,10 @@ function CalendarTab({ kind }: { kind: "calendar" | "restrictions" }) {
               </Field>
             ) : (
               <>
-                <Field label="Minimum stay">
+                <Field
+                  label="Minimum stay"
+                  help="Fewest nights a guest must book when arriving on a night in this range. 1 = no minimum."
+                >
                   <TextInput
                     type="number"
                     min="1"
@@ -439,7 +474,11 @@ function CalendarTab({ kind }: { kind: "calendar" | "restrictions" }) {
                     onChange={(e) => setMinStay(e.target.value)}
                   />
                 </Field>
-                <label className="perm-item" style={{ alignSelf: "center" }}>
+                <label
+                  className="perm-item"
+                  style={{ alignSelf: "center" }}
+                  title="When checked, this plan/room type cannot be sold at all for the nights in the range (no arrivals, no stay-throughs)."
+                >
                   <input
                     type="checkbox"
                     checked={closed}
@@ -552,6 +591,7 @@ function TaxRulesTab() {
                   <th>Name</th>
                   <th>Percent</th>
                   <th>Fixed</th>
+                  <th>Mode</th>
                   <th>Categories</th>
                   <th>Status</th>
                   <th />
@@ -563,6 +603,7 @@ function TaxRulesTab() {
                     <td>{r.name}</td>
                     <td>{r.percent ? `${r.percent}%` : "—"}</td>
                     <td>{r.fixed_minor ?? "—"}</td>
+                    <td className="muted">{r.tax_inclusive ? "inclusive" : "added on"}</td>
                     <td>{r.applies_to_categories.join(", ") || "all"}</td>
                     <td>
                       {r.is_active ? "Active" : <span className="badge badge-cancelled">Inactive</span>}
@@ -637,6 +678,7 @@ function TaxRuleModal({
     fixed: rule?.fixed_minor != null ? toMajorString(rule.fixed_minor, "AUD") : "",
     sort_order: rule?.sort_order ?? 100,
     is_active: rule?.is_active ?? true,
+    tax_inclusive: rule?.tax_inclusive ?? true,
   });
   const [cats, setCats] = useState<Set<string>>(
     new Set(rule?.applies_to_categories ?? []),
@@ -658,26 +700,38 @@ function TaxRuleModal({
       applies_to_categories: [...cats],
       sort_order: Number(f.sort_order),
       is_active: f.is_active,
+      tax_inclusive: f.tax_inclusive,
     });
   }
 
   return (
     <Modal title={rule ? `Edit ${rule.name}` : "New tax rule"} onClose={onClose}>
       <form onSubmit={submit}>
-        <Field label="Name">
+        <Field label="Name" help="Label for the tax, shown on folios and invoices (e.g. GST).">
           <TextInput required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
         </Field>
         <div className="form-row">
-          <Field label="Percent" hint="e.g. 10">
+          <Field
+            label="Percent"
+            hint="e.g. 10"
+            help="Tax rate as a percentage. For a GST-inclusive rule this is the embedded rate — 10% means the GST portion of a price is amount ÷ 11."
+          >
             <TextInput
               value={f.percent}
               onChange={(e) => setF({ ...f, percent: e.target.value })}
             />
           </Field>
-          <Field label="Fixed amount" hint="major units, optional">
+          <Field
+            label="Fixed amount"
+            hint="major units, optional"
+            help="A flat tax added per charge, on top of (or instead of) the percentage. Leave blank for percentage-only taxes."
+          >
             <TextInput value={f.fixed} onChange={(e) => setF({ ...f, fixed: e.target.value })} />
           </Field>
-          <Field label="Sort order">
+          <Field
+            label="Sort order"
+            help="Order taxes are applied and listed in. Lower numbers first."
+          >
             <TextInput
               type="number"
               value={f.sort_order}
@@ -685,7 +739,11 @@ function TaxRuleModal({
             />
           </Field>
         </div>
-        <Field label="Applies to" hint="none checked = all categories">
+        <Field
+          label="Applies to"
+          hint="none checked = all categories"
+          help="Which charge categories this tax applies to. Leave all unchecked to apply it to every category."
+        >
           <div className="perm-grid">
             {CATEGORIES.map((c) => (
               <label key={c} className="perm-item">
@@ -695,7 +753,18 @@ function TaxRuleModal({
             ))}
           </div>
         </Field>
-        <label className="perm-item">
+        <label
+          className="perm-item"
+          title="When checked, prices already include this tax (Australian GST style): the charge amount is what the guest pays and the tax portion is recorded for reporting only, not added on top. When unchecked, the tax is added as a separate line that increases the balance."
+        >
+          <input
+            type="checkbox"
+            checked={f.tax_inclusive}
+            onChange={(e) => setF({ ...f, tax_inclusive: e.target.checked })}
+          />
+          Tax-inclusive pricing (prices already include this tax)
+        </label>
+        <label className="perm-item" title="Inactive tax rules are not applied to new charges.">
           <input
             type="checkbox"
             checked={f.is_active}

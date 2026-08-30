@@ -65,19 +65,27 @@ class FolioServiceImpl:
             .where(TaxRule.is_active.is_(True))
             .order_by(TaxRule.sort_order, TaxRule.id)
         )
+        inclusive_component = 0
         for rule in rules:
-            if category.value not in (rule.applies_to_categories or []):
+            cats = rule.applies_to_categories or []
+            if cats and category.value not in cats:  # empty list == applies to all
                 continue
             amount = 0
             if rule.percent is not None:
+                pct = Decimal(rule.percent)
+                divisor = (Decimal(100) + pct) if rule.tax_inclusive else Decimal(100)
                 amount += int(
-                    (Decimal(charge.amount_minor) * Decimal(rule.percent) / Decimal(100)).quantize(
+                    (Decimal(charge.amount_minor) * pct / divisor).quantize(
                         Decimal(1), rounding=ROUND_HALF_UP
                     )
                 )
             if rule.fixed_minor is not None:
                 amount += int(rule.fixed_minor) * charge.quantity
             if amount == 0:
+                continue
+            if rule.tax_inclusive:
+                # Tax is already part of the charge price: record it, don't add it.
+                inclusive_component += amount
                 continue
             session.add(
                 FolioLine(
@@ -94,7 +102,33 @@ class FolioServiceImpl:
                     parent_line_id=charge.id,
                 )
             )
+        if inclusive_component:
+            charge.tax_component_minor = inclusive_component
         session.flush()
+
+    def gst_minor(self, session: Session, *, folio_id: int) -> int:
+        """Total tax on the folio: inclusive components embedded in charges plus
+        any separate (tax-exclusive) tax lines. Non-void lines only."""
+        get_folio(session, folio_id)
+        embedded = int(
+            session.scalar(
+                select(func.coalesce(func.sum(FolioLine.tax_component_minor), 0)).where(
+                    FolioLine.folio_id == folio_id, FolioLine.is_void.is_(False)
+                )
+            )
+            or 0
+        )
+        added = int(
+            session.scalar(
+                select(func.coalesce(func.sum(FolioLine.amount_minor), 0)).where(
+                    FolioLine.folio_id == folio_id,
+                    FolioLine.is_void.is_(False),
+                    FolioLine.kind == FolioLineKind.tax,
+                )
+            )
+            or 0
+        )
+        return embedded + added
 
     def post_charge(
         self,
@@ -237,6 +271,9 @@ class FolioServiceImpl:
         paid = -sum(
             ln.amount_minor for ln in active if ln.kind is FolioLineKind.payment
         )
+        gst = sum(ln.tax_component_minor for ln in active) + sum(
+            ln.amount_minor for ln in active if ln.kind is FolioLineKind.tax
+        )
         year = _now().year
         seq = (
             session.scalar(
@@ -257,7 +294,7 @@ class FolioServiceImpl:
             lines_json=[
                 *lines,
                 {"kind": "summary", "charged_minor": charged, "paid_minor": paid,
-                 "balance_minor": charged - paid},
+                 "balance_minor": charged - paid, "gst_minor": gst},
             ],
         )
         session.add(invoice)
@@ -291,6 +328,7 @@ def create_tax_rule(session: Session, data: dict) -> TaxRule:
         ],
         is_active=data.get("is_active", True),
         sort_order=data.get("sort_order", 100),
+        tax_inclusive=data.get("tax_inclusive", False),
     )
     session.add(rule)
     session.flush()

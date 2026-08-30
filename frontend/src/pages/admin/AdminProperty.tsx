@@ -46,21 +46,37 @@ export function AdminProperty() {
 // Property
 // --------------------------------------------------------------------------- //
 
-const PROPERTY_FIELDS: [keyof Property, string][] = [
-  ["name", "Name"],
-  ["legal_name", "Legal name"],
-  ["address_line1", "Address line 1"],
-  ["address_line2", "Address line 2"],
-  ["city", "City"],
-  ["region", "Region"],
-  ["postcode", "Postcode"],
-  ["country", "Country (2-letter)"],
-  ["timezone", "Timezone"],
-  ["currency", "Currency (3-letter)"],
-  ["phone", "Phone"],
-  ["email", "Email"],
-  ["check_in_time", "Check-in time"],
-  ["check_out_time", "Check-out time"],
+const PROPERTY_FIELDS: [keyof Property, string, string][] = [
+  ["name", "Name", "Trading name of the property, shown across the app and to guests."],
+  ["legal_name", "Legal name", "Registered business name used on invoices and tax documents."],
+  ["address_line1", "Address line 1", "Street address of the property."],
+  ["address_line2", "Address line 2", "Suite, building or additional address detail (optional)."],
+  ["city", "City", "City or suburb."],
+  ["region", "Region", "State, province or territory."],
+  ["postcode", "Postcode", "Postal or ZIP code."],
+  ["country", "Country (2-letter)", "ISO 3166-1 alpha-2 country code, e.g. AU."],
+  [
+    "timezone",
+    "Timezone",
+    "IANA timezone name (e.g. Australia/Brisbane). Drives night-audit timing and how dates are shown.",
+  ],
+  [
+    "currency",
+    "Currency (3-letter)",
+    "ISO 4217 code (e.g. AUD). All folios and rate plans must use this currency.",
+  ],
+  ["phone", "Phone", "Main contact number for the property."],
+  ["email", "Email", "Main contact email, used as the reply-to on guest correspondence."],
+  [
+    "check_in_time",
+    "Check-in time",
+    "Default earliest arrival time (HH:MM, 24-hour). Informational; shown to guests.",
+  ],
+  [
+    "check_out_time",
+    "Check-out time",
+    "Default latest departure time (HH:MM, 24-hour). Informational; shown to guests.",
+  ],
 ];
 
 function PropertyTab() {
@@ -93,8 +109,8 @@ function PropertyTab() {
         }}
       >
         <div className="form-row">
-          {PROPERTY_FIELDS.map(([key, label]) => (
-            <Field key={key} label={label}>
+          {PROPERTY_FIELDS.map(([key, label, help]) => (
+            <Field key={key} label={label} help={help}>
               <TextInput
                 value={form[key] ?? ""}
                 onChange={(e) => setForm({ ...form, [key]: e.target.value })}
@@ -284,7 +300,10 @@ function BlockModal({
       <form onSubmit={submit}>
         {!editing && (
           <>
-            <Field label="Scope">
+            <Field
+              label="Scope"
+              help="Block one named room, or hold a number of unassigned rooms of a type (an allotment)."
+            >
               <Select
                 value={scope}
                 onChange={(e) => setScope(e.target.value as "room" | "type")}
@@ -295,7 +314,7 @@ function BlockModal({
               />
             </Field>
             {scope === "room" ? (
-              <Field label="Room">
+              <Field label="Room" help="The physical room to take out of sale for the date range.">
                 <Select
                   value={roomId}
                   onChange={(e) => setRoomId(e.target.value)}
@@ -304,14 +323,17 @@ function BlockModal({
               </Field>
             ) : (
               <div className="form-row">
-                <Field label="Room type">
+                <Field label="Room type" help="The room type to remove availability from.">
                   <Select
                     value={typeId}
                     onChange={(e) => setTypeId(e.target.value)}
                     options={[["", "Choose…"], ...types]}
                   />
                 </Field>
-                <Field label="Units">
+                <Field
+                  label="Units"
+                  help="How many rooms of that type to hold back from sale for each night in the range."
+                >
                   <TextInput
                     type="number"
                     min="1"
@@ -324,17 +346,24 @@ function BlockModal({
           </>
         )}
         <div className="form-row">
-          <Field label="From">
+          <Field label="From" help="First night the block applies to (inclusive).">
             <TextInput type="date" value={start} onChange={(e) => setStart(e.target.value)} />
           </Field>
-          <Field label="To" hint="exclusive">
+          <Field
+            label="To"
+            hint="exclusive"
+            help="Night the block ends — this night is not blocked (matches checkout-date convention)."
+          >
             <TextInput type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
           </Field>
         </div>
-        <Field label="Reason">
+        <Field
+          label="Reason"
+          help="Why the room is unavailable. 'Out of order' / 'Maintenance' = unsellable; 'Hold' = deliberately reserved; 'Other' = anything else."
+        >
           <Select value={reason} onChange={(e) => setReason(e.target.value)} options={REASONS} />
         </Field>
-        <Field label="Note">
+        <Field label="Note" help="Optional free-text detail for staff (e.g. 'burst pipe, plumber booked Tue').">
           <Textarea value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
         <button className="btn btn-primary" disabled={busy}>

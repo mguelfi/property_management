@@ -223,6 +223,7 @@ export interface FolioLine {
   description: string;
   quantity: number;
   amount_minor: number;
+  tax_component_minor: number;
   posted_at: string;
   source: string;
   reference: string;
@@ -239,6 +240,7 @@ export interface Folio {
   is_primary: boolean;
   lines: FolioLine[];
   balance_minor: number;
+  gst_minor: number;
 }
 
 export interface Invoice {
@@ -360,6 +362,7 @@ export interface TaxRule {
   applies_to_categories: string[];
   is_active: boolean;
   sort_order: number;
+  tax_inclusive: boolean;
 }
 
 export interface AuditEvent {

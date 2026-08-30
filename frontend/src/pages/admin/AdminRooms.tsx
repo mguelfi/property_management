@@ -192,7 +192,11 @@ function RoomTypeModal({
       <form onSubmit={submit}>
         <div className="form-row">
           {!roomType && (
-            <Field label="Code" hint="A–Z, 0–9, _">
+            <Field
+              label="Code"
+              hint="A–Z, 0–9, _"
+              help="Short unique identifier for this room type (e.g. STD, DLX, SUITE). Used in reports and channel connections. Cannot be changed after creation."
+            >
               <TextInput
                 required
                 pattern="[A-Z0-9_]{2,20}"
@@ -201,7 +205,7 @@ function RoomTypeModal({
               />
             </Field>
           )}
-          <Field label="Name">
+          <Field label="Name" help="Guest-facing name for this room type, shown on booking and folio screens.">
             <TextInput
               required
               value={f.name}
@@ -209,20 +213,29 @@ function RoomTypeModal({
             />
           </Field>
         </div>
-        <Field label="Description">
+        <Field label="Description" help="Optional longer marketing description of the room type.">
           <Textarea
             value={f.description}
             onChange={(e) => setF({ ...f, description: e.target.value })}
           />
         </Field>
         <div className="form-row">
-          <Field label="Max occupancy">
+          <Field
+            label="Max occupancy"
+            help="The most guests (adults + children) allowed to stay in one room of this type."
+          >
             <TextInput type="number" min="1" value={f.max_occupancy} onChange={num("max_occupancy")} />
           </Field>
-          <Field label="Max adults">
+          <Field
+            label="Max adults"
+            help="The most adults allowed in one room of this type, within the max occupancy."
+          >
             <TextInput type="number" min="1" value={f.max_adults} onChange={num("max_adults")} />
           </Field>
-          <Field label="Standard occupancy">
+          <Field
+            label="Standard occupancy"
+            help="The guest count a room of this type is priced and set up for by default. Extra guests may incur an additional-person charge."
+          >
             <TextInput
               type="number"
               min="1"
@@ -232,16 +245,25 @@ function RoomTypeModal({
           </Field>
         </div>
         <div className="form-row">
-          <Field label="Bed configuration">
+          <Field
+            label="Bed configuration"
+            help="Free-text description of the beds, e.g. '1 queen' or '1 king + sofa bed'. Shown to staff and on booking screens."
+          >
             <TextInput
               value={f.bed_configuration}
               onChange={(e) => setF({ ...f, bed_configuration: e.target.value })}
             />
           </Field>
-          <Field label="Sort order">
+          <Field
+            label="Sort order"
+            help="Controls the position of this room type in lists. Lower numbers appear first; ties break by code."
+          >
             <TextInput type="number" value={f.sort_order} onChange={num("sort_order")} />
           </Field>
-          <Field label="Overbooking allowance">
+          <Field
+            label="Overbooking allowance"
+            help="Extra rooms of this type you allow to be sold beyond the physical room count, to absorb expected no-shows and cancellations. 0 = never oversell."
+          >
             <TextInput
               type="number"
               min="0"
@@ -554,21 +576,30 @@ function RoomModal({
     <Modal title={room ? `Edit room ${room.number}` : "New room"} onClose={onClose}>
       <form onSubmit={submit}>
         <div className="form-row">
-          <Field label="Number">
+          <Field
+            label="Number"
+            help="The room number as guests and staff know it. Must be unique across the property."
+          >
             <TextInput
               required
               value={f.number}
               onChange={(e) => setF({ ...f, number: e.target.value })}
             />
           </Field>
-          <Field label="Name">
+          <Field label="Name" help="Optional label, e.g. 'Garden Suite' or 'Manager's flat'.">
             <TextInput value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
           </Field>
-          <Field label="Floor">
+          <Field
+            label="Floor"
+            help="Free-text floor label (e.g. 'G', '1', 'Mezzanine'). Used to group and filter the room list."
+          >
             <TextInput value={f.floor} onChange={(e) => setF({ ...f, floor: e.target.value })} />
           </Field>
         </div>
-        <Field label="Room type">
+        <Field
+          label="Room type"
+          help="Determines pricing, capacity and availability for this room. Changing it re-classifies the physical room."
+        >
           <Select
             value={String(f.room_type_id)}
             onChange={(e) => setF({ ...f, room_type_id: Number(e.target.value) })}
@@ -576,7 +607,11 @@ function RoomModal({
           />
         </Field>
         {room && (
-          <Field label="Adjoining room" hint="Kept symmetric on the other room automatically">
+          <Field
+            label="Adjoining room"
+            hint="Kept symmetric on the other room automatically"
+            help="Marks two rooms as connecting (interior door). Setting one side automatically sets the other; clearing either clears both."
+          >
             <Select
               value={adjoining}
               onChange={(e) => setAdjoining(e.target.value)}

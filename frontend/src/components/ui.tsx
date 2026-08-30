@@ -43,16 +43,26 @@ export function Field({
   label,
   error,
   hint,
+  help,
   children,
 }: {
   label: string;
   error?: string;
   hint?: string;
+  /** Longer explanation shown as a hover tooltip on an ⓘ marker. */
+  help?: string;
   children: ReactNode;
 }) {
   return (
     <label className="field">
-      <span className="field-label">{label}</span>
+      <span className="field-label">
+        {label}
+        {help && (
+          <span className="field-help" title={help} aria-label={help} role="img">
+            ⓘ
+          </span>
+        )}
+      </span>
       {children}
       {hint && !error && <span className="field-hint">{hint}</span>}
       {error && <span className="field-error">{error}</span>}

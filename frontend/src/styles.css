@@ -540,3 +540,10 @@ table.data tr.group-row td {
     grid-template-columns: 1fr;
   }
 }
+
+.field-help {
+  margin-left: 5px;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: help;
+}

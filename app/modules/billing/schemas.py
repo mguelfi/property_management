@@ -35,6 +35,7 @@ class FolioLineOut(BaseModel):
     description: str
     quantity: int
     amount_minor: int
+    tax_component_minor: int = 0
     posted_at: datetime
     source: str
     reference: str
@@ -52,6 +53,7 @@ class FolioOut(BaseModel):
     is_primary: bool
     lines: list[FolioLineOut]
     balance_minor: int = 0
+    gst_minor: int = 0
 
 
 class TaxRuleIn(BaseModel):
@@ -61,6 +63,7 @@ class TaxRuleIn(BaseModel):
     applies_to_categories: list[ChargeCategory] = []
     is_active: bool = True
     sort_order: int = 100
+    tax_inclusive: bool = False
 
 
 class TaxRuleUpdate(BaseModel):
@@ -70,6 +73,7 @@ class TaxRuleUpdate(BaseModel):
     applies_to_categories: list[ChargeCategory] | None = None
     is_active: bool | None = None
     sort_order: int | None = None
+    tax_inclusive: bool | None = None
 
 
 class TaxRuleOut(BaseModel):
@@ -81,6 +85,7 @@ class TaxRuleOut(BaseModel):
     applies_to_categories: list[str]
     is_active: bool
     sort_order: int
+    tax_inclusive: bool
 
 
 class InvoiceIn(BaseModel):

@@ -35,6 +35,7 @@ close = require("billing.close")
 def _folio_out(db: Session, folio: Folio) -> FolioOut:
     out = FolioOut.model_validate(folio)
     out.balance_minor = service.service_impl.balance_minor(db, folio_id=folio.id)
+    out.gst_minor = service.service_impl.gst_minor(db, folio_id=folio.id)
     return out
 
 

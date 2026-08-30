@@ -171,11 +171,13 @@ def _seed_rates(session: Session, types: dict[str, RoomType]) -> RatePlan:
 
 
 def _seed_tax(session: Session) -> None:
-    if session.scalar(select(TaxRule).where(TaxRule.name == "GST")) is None:
+    gst = session.scalar(select(TaxRule).where(TaxRule.name == "GST"))
+    if gst is None:
         session.add(
             TaxRule(
                 name="GST",
                 percent=10,
+                tax_inclusive=True,
                 applies_to_categories=[
                     ChargeCategory.room.value,
                     ChargeCategory.room_service.value,
@@ -186,6 +188,9 @@ def _seed_tax(session: Session) -> None:
                 is_active=True,
             )
         )
+        session.flush()
+    elif not gst.tax_inclusive:
+        gst.tax_inclusive = True  # Australian GST is inclusive pricing
         session.flush()
 
 

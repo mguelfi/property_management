@@ -104,7 +104,15 @@ export function FolioPanel({ reservationId }: { reservationId: number }) {
             {folio.lines.map((l) => (
               <tr key={l.id} style={l.is_void ? { opacity: 0.4, textDecoration: "line-through" } : undefined}>
                 <td>{fmtDateTime(l.posted_at)}</td>
-                <td>{l.description}</td>
+                <td>
+                  {l.description}
+                  {l.tax_component_minor > 0 && (
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      {" "}
+                      (incl. GST {formatMoney(l.tax_component_minor, currency)})
+                    </span>
+                  )}
+                </td>
                 <td className="muted">{l.category}</td>
                 <td className="num-cell">{formatMoney(l.amount_minor, currency)}</td>
                 <td className="num-cell">
@@ -128,6 +136,15 @@ export function FolioPanel({ reservationId }: { reservationId: number }) {
             ))}
           </tbody>
           <tfoot>
+            {folio.gst_minor > 0 && (
+              <tr>
+                <td colSpan={3} className="muted">
+                  Total GST (included)
+                </td>
+                <td className="num-cell muted">{formatMoney(folio.gst_minor, currency)}</td>
+                <td />
+              </tr>
+            )}
             <tr>
               <th colSpan={3}>Balance</th>
               <th className="num-cell">{formatMoney(folio.balance_minor, currency)}</th>

@@ -224,7 +224,10 @@ function RolePicker({
   onToggle: (code: string) => void;
 }) {
   return (
-    <Field label="Roles">
+    <Field
+      label="Roles"
+      help="Assign one or more roles. The user gets the combined permissions of every role selected."
+    >
       <div className="perm-grid">
         {roles.map((r) => (
           <label key={r.id} className="perm-item">
@@ -278,14 +281,21 @@ function UserCreateModal({
   return (
     <Modal title="New user" onClose={onClose}>
       <form onSubmit={submit}>
-        <Field label="Username">
+        <Field
+          label="Username"
+          help="The name this person signs in with. 3–50 characters: letters, digits, dot, dash, underscore. Cannot be changed here after creation."
+        >
           <TextInput
             required
             value={f.username}
             onChange={(e) => setF({ ...f, username: e.target.value })}
           />
         </Field>
-        <Field label="Password" hint="At least 8 characters">
+        <Field
+          label="Password"
+          hint="At least 8 characters"
+          help="Initial password. The user cannot change it themselves yet — an admin resets it via 'Reset password'."
+        >
           <TextInput
             type="password"
             required
@@ -309,7 +319,10 @@ function UserCreateModal({
             />
           </Field>
         </div>
-        <label className="perm-item">
+        <label
+          className="perm-item"
+          title="A superuser bypasses all permission checks and can do anything in the system. Grant sparingly; prefer roles."
+        >
           <input
             type="checkbox"
             checked={isSuper}
@@ -380,7 +393,10 @@ function UserEditModal({
             />
           </Field>
         </div>
-        <label className="perm-item">
+        <label
+          className="perm-item"
+          title="Inactive accounts cannot sign in. Deactivating is the way to 'remove' a user — the record and its history are kept."
+        >
           <input
             type="checkbox"
             checked={active}
@@ -388,7 +404,10 @@ function UserEditModal({
           />
           Active
         </label>
-        <label className="perm-item">
+        <label
+          className="perm-item"
+          title="A superuser bypasses all permission checks and can do anything in the system. Grant sparingly; prefer roles."
+        >
           <input
             type="checkbox"
             checked={isSuper}
@@ -600,7 +619,11 @@ function RoleModal({
     <Modal title={role ? `Edit ${role.code}` : "New role"} onClose={onClose}>
       <form onSubmit={submit}>
         <div className="form-row">
-          <Field label="Code" hint="lowercase, e.g. night_manager">
+          <Field
+            label="Code"
+            hint="lowercase, e.g. night_manager"
+            help="Stable internal identifier for the role, used by seed scripts and integrations. Renaming it may break automation that references the old code."
+          >
             <TextInput
               required
               pattern="[a-z][a-z0-9_]*"
@@ -608,17 +631,20 @@ function RoleModal({
               onChange={(e) => setCode(e.target.value)}
             />
           </Field>
-          <Field label="Name">
+          <Field label="Name" help="Human-readable role name shown when assigning roles to users.">
             <TextInput required value={name} onChange={(e) => setName(e.target.value)} />
           </Field>
         </div>
-        <Field label="Description">
+        <Field label="Description" help="Optional note on what this role is for and who should have it.">
           <Textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
         </Field>
-        <Field label="Permissions">
+        <Field
+          label="Permissions"
+          help="Everything a user with this role can do. A user's effective permissions are the union of all their roles. Hover a permission for its meaning."
+        >
           <div>
             {groups.map(([group, perms]) => (
               <div key={group} style={{ marginBottom: 8 }}>

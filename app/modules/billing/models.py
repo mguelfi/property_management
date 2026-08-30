@@ -64,6 +64,9 @@ class FolioLine(Base):
     source: Mapped[str] = mapped_column(String(30), default="manual")
     reference: Mapped[str] = mapped_column(String(120), default="")
     parent_line_id: Mapped[int | None] = mapped_column(ForeignKey("bill_folio_lines.id"))
+    tax_component_minor: Mapped[int] = mapped_column(Integer, default=0)
+    """GST/tax already embedded in ``amount_minor`` for tax-inclusive rules.
+    Informational only — it does not affect the folio balance."""
     is_void: Mapped[bool] = mapped_column(Boolean, default=False)
     void_reason: Mapped[str] = mapped_column(Text, default="")
 
@@ -97,6 +100,9 @@ class TaxRule(Base, TimestampMixin):
     applies_to_categories: Mapped[list[str]] = mapped_column(JSONB, default=list)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=100)
+    tax_inclusive: Mapped[bool] = mapped_column(Boolean, default=False)
+    """When true, charge prices already include this tax; the tax portion is
+    recorded on the charge line and not added as a separate balance line."""
 
 
 class Invoice(Base, TimestampMixin):
