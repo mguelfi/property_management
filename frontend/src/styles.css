@@ -250,18 +250,25 @@ table.data tbody tr:hover {
 .btn {
   padding: 8px 14px;
   border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--text-muted) 55%, var(--border));
+  background: var(--surface-2);
   color: var(--text);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  transition: background 0.12s, border-color 0.12s, transform 0.05s;
 }
-.btn:hover {
-  background: var(--surface-2);
+.btn:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--text-muted);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
+  box-shadow: none;
   cursor: not-allowed;
 }
 .btn-primary {
@@ -269,18 +276,29 @@ table.data tbody tr:hover {
   border-color: var(--primary);
   color: var(--primary-text);
 }
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   filter: brightness(1.05);
   background: var(--primary);
+  border-color: var(--primary);
 }
 .btn-danger {
   background: var(--danger);
   border-color: var(--danger);
   color: #fff;
 }
+.btn-danger:hover:not(:disabled) {
+  filter: brightness(1.05);
+  background: var(--danger);
+  border-color: var(--danger);
+}
 .btn-ghost {
   border-color: transparent;
   background: transparent;
+  box-shadow: none;
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: transparent;
 }
 .btn-sm {
   padding: 4px 10px;
