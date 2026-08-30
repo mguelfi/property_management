@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.db import get_db
 from app.core.pagination import Page, PageParams, page_params, paginate
 from app.core.rbac import require
+from app.modules.auth.models import User
 
 from .models import AuditEvent
 
@@ -23,6 +24,7 @@ class AuditEventOut(BaseModel):
     id: int
     event_type: str
     actor_id: int | None
+    actor_username: str | None = None
     entity_type: str
     entity_id: int | None
     occurred_at: object
@@ -45,9 +47,22 @@ def list_events(
     if event_type:
         stmt = stmt.where(AuditEvent.event_type == event_type)
     rows, total = paginate(db, stmt, params)
+
+    actor_ids = {r.actor_id for r in rows if r.actor_id is not None}
+    usernames: dict[int, str] = {}
+    if actor_ids:
+        usernames = {
+            uid: uname
+            for uid, uname in db.execute(
+                select(User.id, User.username).where(User.id.in_(actor_ids))
+            ).all()
+        }
+
+    items: list[AuditEventOut] = []
+    for r in rows:
+        out = AuditEventOut.model_validate(r)
+        out.actor_username = usernames.get(r.actor_id) if r.actor_id is not None else None
+        items.append(out)
     return Page[AuditEventOut](
-        items=[AuditEventOut.model_validate(r) for r in rows],
-        total=total,
-        limit=params.limit,
-        offset=params.offset,
+        items=items, total=total, limit=params.limit, offset=params.offset
     )

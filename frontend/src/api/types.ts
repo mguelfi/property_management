@@ -369,6 +369,7 @@ export interface AuditEvent {
   id: number;
   event_type: string;
   actor_id: number | null;
+  actor_username: string | null;
   entity_type: string;
   entity_id: number | null;
   occurred_at: string;

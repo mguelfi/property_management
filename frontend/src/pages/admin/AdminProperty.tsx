@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   useAdminBlocks,
+  useAdminRooms,
   useAdminRoomTypes,
   useAuditEvents,
   useBlockAdminActions,
@@ -11,6 +12,7 @@ import {
 import type { Property, RoomBlock } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
 import { todayISO } from "../../lib/dates";
+import { AuditActor, AuditEntity, AuditPayload, type RoomMap } from "../../components/AuditView";
 import { useToast } from "../../components/Toaster";
 import {
   EmptyState,
@@ -393,6 +395,11 @@ function AuditTab() {
     offset: page * AUDIT_PAGE,
     limit: AUDIT_PAGE,
   });
+  const roomsQ = useAdminRooms({ q: "", offset: 0, limit: 1000 });
+  const rooms: RoomMap = useMemo(
+    () => new Map((roomsQ.data?.items ?? []).map((r) => [r.id, r.number])),
+    [roomsQ.data],
+  );
   const pages = events.data ? Math.ceil(events.data.total / AUDIT_PAGE) : 0;
 
   return (
@@ -452,18 +459,14 @@ function AuditTab() {
                   <tr key={ev.id}>
                     <td>{new Date(ev.occurred_at).toLocaleString()}</td>
                     <td>{ev.event_type}</td>
-                    <td>{ev.actor_id ?? "—"}</td>
                     <td>
-                      {ev.entity_type}
-                      {ev.entity_id != null ? ` #${ev.entity_id}` : ""}
+                      <AuditActor ev={ev} />
                     </td>
                     <td>
-                      <details>
-                        <summary className="muted">view</summary>
-                        <pre style={{ whiteSpace: "pre-wrap", margin: 0 }}>
-                          {JSON.stringify(ev.payload, null, 2)}
-                        </pre>
-                      </details>
+                      <AuditEntity ev={ev} rooms={rooms} />
+                    </td>
+                    <td>
+                      <AuditPayload ev={ev} rooms={rooms} />
                     </td>
                   </tr>
                 ))}

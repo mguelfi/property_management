@@ -134,6 +134,8 @@ def test_full_stay(client, auth_headers, db, world):
     ).json()
     kinds = {e["event_type"] for e in events["items"]}
     assert {"ReservationConfirmed", "GuestCheckedIn", "GuestCheckedOut"} <= kinds
+    confirmed = next(e for e in events["items"] if e["event_type"] == "ReservationConfirmed")
+    assert confirmed["actor_username"] == "root"  # dereferenced, not a bare id
 
 
 def test_checkout_blocked_by_balance(client, auth_headers, db, world):
