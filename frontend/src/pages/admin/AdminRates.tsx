@@ -376,6 +376,8 @@ function CalendarTab({ kind }: { kind: "calendar" | "restrictions" }) {
   const [amount, setAmount] = useState("");
   const [minStay, setMinStay] = useState("1");
   const [closed, setClosed] = useState(false);
+  const [closedToArrival, setClosedToArrival] = useState(false);
+  const [closedToDeparture, setClosedToDeparture] = useState(false);
 
   const currency = plans.data?.find((p) => p.id === planId)?.currency ?? "AUD";
 
@@ -402,6 +404,8 @@ function CalendarTab({ kind }: { kind: "calendar" | "restrictions" }) {
           end_date: end,
           min_stay: Number(minStay),
           closed,
+          closed_to_arrival: closedToArrival,
+          closed_to_departure: closedToDeparture,
         },
         { onSuccess: (r) => toast.ok(`Updated ${r.updated} night(s)`), onError: toast.error },
       );
@@ -485,6 +489,30 @@ function CalendarTab({ kind }: { kind: "calendar" | "restrictions" }) {
                     onChange={(e) => setClosed(e.target.checked)}
                   />
                   Closed
+                </label>
+                <label
+                  className="perm-item"
+                  style={{ alignSelf: "center" }}
+                  title="Guests may not arrive on nights in this range (stay-throughs and departures still allowed)."
+                >
+                  <input
+                    type="checkbox"
+                    checked={closedToArrival}
+                    onChange={(e) => setClosedToArrival(e.target.checked)}
+                  />
+                  Closed to arrival
+                </label>
+                <label
+                  className="perm-item"
+                  style={{ alignSelf: "center" }}
+                  title="Guests may not depart on nights in this range."
+                >
+                  <input
+                    type="checkbox"
+                    checked={closedToDeparture}
+                    onChange={(e) => setClosedToDeparture(e.target.checked)}
+                  />
+                  Closed to departure
                 </label>
               </>
             )}

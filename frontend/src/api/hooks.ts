@@ -3,10 +3,17 @@ import { api } from "./client";
 import type {
   AdminUser,
   ArrivalRow,
+  ArrivalsDeparturesRow,
   AuditEvent,
+  Company,
   Folio,
   Guest,
+  HousekeepingStatus,
+  HousekeepingTask,
+  HousekeepingTaskStatus,
   Invoice,
+  NightAuditResult,
+  OccupancySummary,
   Page,
   Permission,
   Property,
@@ -18,9 +25,12 @@ import type {
   ReservationCreate,
   ReservationListItem,
   ReservationStatus,
+  RevenueSummary,
   Role,
   Room,
   RoomBlock,
+  RoomHousekeepingRow,
+  RoomLineIn,
   RoomType,
   RoomTypeOffer,
   TaxRule,
@@ -90,6 +100,24 @@ export function usePatchGuest(id: number) {
       qc.invalidateQueries({ queryKey: ["guest-list"] });
     },
   });
+}
+
+export const useCompanies = () =>
+  useQuery({
+    queryKey: ["companies"],
+    queryFn: () => api<Company[]>("/api/guests/companies/"),
+    staleTime: 60_000,
+  });
+
+export function useCompanyAdminActions() {
+  const qc = useQueryClient();
+  return {
+    create: useMutation({
+      mutationFn: (body: Record<string, unknown>) =>
+        api<Company>("/api/guests/companies/", { method: "POST", body }),
+      onSuccess: () => qc.invalidateQueries({ queryKey: ["companies"] }),
+    }),
+  };
 }
 
 // -- availability ------------------------------------------------------- //
@@ -167,6 +195,19 @@ export function useReservationAction(id: number) {
       onSuccess: invalidate,
     }),
   };
+}
+
+export function useAmendReservation(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { rooms: RoomLineIn[] }) =>
+      api<Reservation>(`/api/reservations/${id}/rooms`, { method: "PUT", body }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["reservation", id] });
+      qc.invalidateQueries({ queryKey: ["reservations"] });
+      qc.invalidateQueries({ queryKey: ["availability"] });
+    },
+  });
 }
 
 export function useCreateReservation() {
@@ -616,6 +657,101 @@ export function useBlockAdminActions() {
       onSuccess: invalidate,
     }),
   };
+}
+
+// -- housekeeping -------------------------------------------------------- //
+
+export const useHousekeepingBoard = (f: { floor?: string; status?: HousekeepingStatus | "" }) =>
+  useQuery({
+    queryKey: ["housekeeping-board", f],
+    queryFn: () =>
+      api<RoomHousekeepingRow[]>("/api/housekeeping/board", {
+        query: { floor: f.floor || undefined, status: f.status || undefined },
+      }),
+    refetchInterval: 60_000,
+  });
+
+export function useHousekeepingActions() {
+  const qc = useQueryClient();
+  return {
+    setStatus: useMutation({
+      mutationFn: (v: { roomId: number; status: HousekeepingStatus; note?: string }) =>
+        api<RoomHousekeepingRow>(`/api/housekeeping/rooms/${v.roomId}/status`, {
+          method: "POST",
+          body: { status: v.status, note: v.note ?? "" },
+        }),
+      onSuccess: () => qc.invalidateQueries({ queryKey: ["housekeeping-board"] }),
+    }),
+  };
+}
+
+export const useHousekeepingTasks = (status?: HousekeepingTaskStatus | "") =>
+  useQuery({
+    queryKey: ["housekeeping-tasks", status ?? ""],
+    queryFn: () =>
+      api<HousekeepingTask[]>("/api/housekeeping/tasks", { query: { status: status || undefined } }),
+  });
+
+export function useHousekeepingTaskActions() {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["housekeeping-tasks"] });
+  return {
+    create: useMutation({
+      mutationFn: (body: Record<string, unknown>) =>
+        api<HousekeepingTask>("/api/housekeeping/tasks", { method: "POST", body }),
+      onSuccess: invalidate,
+    }),
+    update: useMutation({
+      mutationFn: (v: { id: number; body: Record<string, unknown> }) =>
+        api<HousekeepingTask>(`/api/housekeeping/tasks/${v.id}`, {
+          method: "PATCH",
+          body: v.body,
+        }),
+      onSuccess: invalidate,
+    }),
+  };
+}
+
+// -- reports & night audit ------------------------------------------------ //
+
+export const useOccupancyReport = (start: string, end: string) =>
+  useQuery({
+    queryKey: ["report-occupancy", start, end],
+    queryFn: () =>
+      api<OccupancySummary[]>("/api/reports/occupancy", { query: { start, end } }),
+    enabled: !!start && !!end,
+  });
+
+export const useRevenueReport = (start: string, end: string) =>
+  useQuery({
+    queryKey: ["report-revenue", start, end],
+    queryFn: () => api<RevenueSummary>("/api/reports/revenue", { query: { start, end } }),
+    enabled: !!start && !!end,
+  });
+
+export const useArrivalsDeparturesReport = (start: string, end: string) =>
+  useQuery({
+    queryKey: ["report-arrdep", start, end],
+    queryFn: () =>
+      api<ArrivalsDeparturesRow[]>("/api/reports/arrivals-departures", {
+        query: { start, end },
+      }),
+    enabled: !!start && !!end,
+  });
+
+export function useNightAudit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (as_of?: string) =>
+      api<NightAuditResult>("/api/frontdesk/night-audit", { method: "POST", body: { as_of } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["audit-events"] });
+      qc.invalidateQueries({ queryKey: ["reservations"] });
+      qc.invalidateQueries({ queryKey: ["frontdesk"] });
+      qc.invalidateQueries({ queryKey: ["report-revenue"] });
+      qc.invalidateQueries({ queryKey: ["report-occupancy"] });
+    },
+  });
 }
 
 export const useAuditEvents = (f: {

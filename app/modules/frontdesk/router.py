@@ -14,12 +14,21 @@ from app.modules.reservations.models import Reservation
 from app.modules.reservations.schemas import ReservationOut
 
 from . import service
-from .schemas import ArrivalRow, AssignIn, CheckOutIn, FrontDeskAction, WalkInCreate
+from .schemas import (
+    ArrivalRow,
+    AssignIn,
+    CheckOutIn,
+    FrontDeskAction,
+    NightAuditIn,
+    NightAuditOut,
+    WalkInCreate,
+)
 
 router = APIRouter()
 DbDep = Annotated[Session, Depends(get_db)]
 OnDate = Annotated[date | None, Query()]
 operate = require("frontdesk.operate")
+night_audit_perm = require("frontdesk.night_audit")
 
 
 @router.get("/arrivals", response_model=list[ArrivalRow], dependencies=[operate])
@@ -122,4 +131,17 @@ def walk_in(payload: WalkInCreate, db: DbDep, user: CurrentUserDep) -> FrontDesk
     return FrontDeskAction(
         reservation=ReservationOut.model_validate(reservation),
         message="Walk-in created, assigned and checked in",
+    )
+
+
+@router.post("/night-audit", response_model=NightAuditOut, dependencies=[night_audit_perm])
+def night_audit(payload: NightAuditIn, db: DbDep, user: CurrentUserDep) -> NightAuditOut:
+    result = service.run_night_audit(
+        db, as_of=payload.as_of or date.today(), actor_id=user.id
+    )
+    return NightAuditOut(
+        as_of=result.as_of,
+        night=result.night,
+        charges_posted=result.charges_posted,
+        no_shows_marked=result.no_shows_marked,
     )

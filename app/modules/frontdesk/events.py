@@ -1,8 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 
 from app.core.events import Event
+
+
+@dataclass(kw_only=True)
+class NightAuditRun(Event):
+    as_of: date
+    night: date
+    charges_posted: int
+    no_shows_marked: int
 
 
 @dataclass(kw_only=True)

@@ -6,7 +6,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from app.jobs.post_room_charges import post_for_night
+from app.modules.frontdesk.service import post_room_charges as post_for_night
 from tests.factories import make_guest, make_property, make_rate_plan, make_room_type
 
 

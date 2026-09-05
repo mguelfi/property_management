@@ -9,14 +9,17 @@ import { Reservations } from "./pages/Reservations";
 import { ReservationDetail } from "./pages/ReservationDetail";
 import { NewBooking } from "./pages/NewBooking";
 import { FrontDesk } from "./pages/FrontDesk";
+import { Housekeeping } from "./pages/Housekeeping";
 import { FolioPage } from "./pages/Folio";
 import { Guests } from "./pages/Guests";
 import { GuestDetail } from "./pages/GuestDetail";
 import { AdminLayout } from "./pages/admin/AdminLayout";
 import { AdminAccess } from "./pages/admin/AdminAccess";
 import { AdminRooms } from "./pages/admin/AdminRooms";
+import { AdminCompanies } from "./pages/admin/AdminCompanies";
 import { AdminRates } from "./pages/admin/AdminRates";
 import { AdminProperty } from "./pages/admin/AdminProperty";
+import { AdminReports } from "./pages/admin/AdminReports";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <Login /> },
@@ -32,6 +35,14 @@ export const router = createBrowserRouter([
       { path: "reservations/:id", element: <ReservationDetail /> },
       { path: "book", element: <NewBooking /> },
       { path: "frontdesk", element: <FrontDesk /> },
+      {
+        path: "housekeeping",
+        element: (
+          <RequirePermission anyOf={["housekeeping.view"]}>
+            <Housekeeping />
+          </RequirePermission>
+        ),
+      },
       { path: "folio/:id", element: <FolioPage /> },
       { path: "guests", element: <Guests /> },
       { path: "guests/:id", element: <GuestDetail /> },
@@ -46,8 +57,10 @@ export const router = createBrowserRouter([
           { index: true, element: <Navigate to="access" replace /> },
           { path: "access", element: <AdminAccess /> },
           { path: "rooms", element: <AdminRooms /> },
+          { path: "companies", element: <AdminCompanies /> },
           { path: "rates", element: <AdminRates /> },
           { path: "property", element: <AdminProperty /> },
+          { path: "reports", element: <AdminReports /> },
         ],
       },
     ],

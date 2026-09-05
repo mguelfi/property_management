@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   useAvailability,
+  useCompanies,
   useCreateGuest,
   useCreateReservation,
   useGuestSearch,
@@ -45,6 +46,8 @@ export function NewBooking() {
   const [guestId, setGuestId] = useState<number | null>(null);
   const [newGuest, setNewGuest] = useState({ first_name: "", last_name: "", email: "", phone: "" });
   const guestSearch = useGuestSearch(guestQuery);
+  const [companyId, setCompanyId] = useState<number | null>(null);
+  const companies = useCompanies();
 
   const createGuest = useCreateGuest();
   const createReservation = useCreateReservation();
@@ -88,6 +91,7 @@ export function NewBooking() {
       }
       const res = await createReservation.mutateAsync({
         primary_guest_id,
+        company_id: companyId,
         status: "confirmed",
         rooms: picks.map((p) => ({
           room_type_id: p.room_type_id,
@@ -295,6 +299,17 @@ export function NewBooking() {
               </Field>
             </div>
           )}
+
+          <Field label="Company (bill to)" hint="Optional">
+            <Select
+              value={companyId ? String(companyId) : ""}
+              onChange={(e) => setCompanyId(e.target.value ? Number(e.target.value) : null)}
+              options={[
+                ["", "— none —"],
+                ...(companies.data ?? []).map((c) => [String(c.id), c.name] as [string, string]),
+              ]}
+            />
+          </Field>
 
           <button
             className="btn btn-primary"

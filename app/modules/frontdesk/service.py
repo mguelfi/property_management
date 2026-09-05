@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from dataclasses import dataclass
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import and_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.daterange import overlaps
+from app.core.enums import ChargeCategory
 from app.core.errors import Conflict, NotFound, ValidationProblem
 from app.core.events import bus
 from app.core.service_registry import get_service
@@ -20,7 +22,7 @@ from app.modules.reservations.models import (
     ReservationStatus,
 )
 
-from .events import GuestCheckedIn, GuestCheckedOut, RoomAssigned
+from .events import GuestCheckedIn, GuestCheckedOut, NightAuditRun, RoomAssigned
 from .models import AssignmentAction, RoomAssignmentLog
 
 
@@ -246,3 +248,70 @@ def no_show_sweep(session: Session, as_of: date) -> list[int]:
         res_service.no_show(session, reservation)
         marked.append(reservation.id)
     return marked
+
+
+def post_room_charges(session: Session, night: date) -> int:
+    """Post the night's room charge (+ tax) to each in-house folio.
+
+    Idempotent: each ``ReservationRoomNight`` is flagged ``posted`` once its
+    charge has been pushed, so re-running for the same night is a no-op.
+    """
+    folio = _folio()
+    reservations = session.scalars(
+        select(Reservation)
+        .where(Reservation.status == ReservationStatus.in_house)
+        .options(selectinload(Reservation.rooms).selectinload(ReservationRoom.nightly_rates))
+    )
+    posted = 0
+    for reservation in reservations:
+        folio_id = folio.get_or_open_folio(session, reservation_id=reservation.id)
+        for room in reservation.rooms:
+            for rn in room.nightly_rates:
+                if rn.date != night or rn.posted:
+                    continue
+                folio.post_charge(
+                    session,
+                    folio_id=folio_id,
+                    category=ChargeCategory.room,
+                    description=f"Room {room.room_type_id} - night of {night.isoformat()}",
+                    amount_minor=rn.amount_minor,
+                    source="night_audit",
+                    reference=f"{reservation.reference}/{rn.id}",
+                )
+                rn.posted = True
+                posted += 1
+    session.flush()
+    return posted
+
+
+@dataclass(frozen=True, kw_only=True)
+class NightAuditResult:
+    as_of: date
+    night: date
+    charges_posted: int
+    no_shows_marked: int
+
+
+def run_night_audit(
+    session: Session, *, as_of: date, actor_id: int | None
+) -> NightAuditResult:
+    night = as_of - timedelta(days=1)
+    charges_posted = post_room_charges(session, night)
+    no_shows = no_show_sweep(session, as_of)
+    result = NightAuditResult(
+        as_of=as_of,
+        night=night,
+        charges_posted=charges_posted,
+        no_shows_marked=len(no_shows),
+    )
+    bus.publish(
+        NightAuditRun(
+            as_of=as_of,
+            night=night,
+            charges_posted=charges_posted,
+            no_shows_marked=len(no_shows),
+            actor_id=actor_id,
+        ),
+        session,
+    )
+    return result

@@ -8,4 +8,5 @@ export const ADMIN_CODES = [
   "rates.manage",
   "billing.manage_tax",
   "audit.view",
+  "reports.view",
 ] as const;

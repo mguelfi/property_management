@@ -339,6 +339,20 @@ table.data tbody tr:hover {
 .badge-inquiry {
   color: var(--warn);
 }
+.badge-clean,
+.badge-done {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+.badge-dirty,
+.badge-out_of_service {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.badge-inspected,
+.badge-in_progress {
+  color: var(--primary);
+}
 
 /* -- misc -- */
 .spinner {

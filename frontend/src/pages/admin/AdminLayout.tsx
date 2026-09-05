@@ -4,8 +4,10 @@ import { useAuth } from "../../auth/AuthContext";
 const SECTIONS: { to: string; label: string; codes: string[] }[] = [
   { to: "/admin/access", label: "Users & roles", codes: ["auth.manage_users", "auth.manage_roles"] },
   { to: "/admin/rooms", label: "Rooms", codes: ["inventory.manage", "inventory.view"] },
+  { to: "/admin/companies", label: "Companies", codes: ["guests.manage", "guests.view"] },
   { to: "/admin/rates", label: "Rates & tax", codes: ["rates.manage", "billing.manage_tax"] },
   { to: "/admin/property", label: "Property", codes: ["inventory.manage", "audit.view"] },
+  { to: "/admin/reports", label: "Reports", codes: ["reports.view"] },
 ];
 
 export function AdminLayout() {

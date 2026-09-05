@@ -5,6 +5,7 @@ import { ADMIN_CODES } from "../auth/permissions";
 const NAV = [
   { to: "/", label: "Dashboard", end: true },
   { to: "/frontdesk", label: "Front desk" },
+  { to: "/housekeeping", label: "Housekeeping", perm: "housekeeping.view" },
   { to: "/reservations", label: "Reservations" },
   { to: "/book", label: "New booking" },
   { to: "/guests", label: "Guests" },
@@ -14,13 +15,14 @@ export function Layout() {
   const { me, logout, can } = useAuth();
   const navigate = useNavigate();
   const showAdmin = ADMIN_CODES.some((c) => can(c));
+  const visibleNav = NAV.filter((n) => !n.perm || can(n.perm));
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">Front Desk</div>
         <nav>
-          {NAV.map((n) => (
+          {visibleNav.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className="nav-link">
               {n.label}
             </NavLink>

@@ -35,3 +35,14 @@ class ArrivalRow(BaseModel):
 class FrontDeskAction(BaseModel):
     reservation: ReservationOut
     message: str = ""
+
+
+class NightAuditIn(BaseModel):
+    as_of: date | None = None
+
+
+class NightAuditOut(BaseModel):
+    as_of: date
+    night: date
+    charges_posted: int
+    no_shows_marked: int

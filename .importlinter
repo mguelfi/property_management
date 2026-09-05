@@ -152,6 +152,33 @@ forbidden_modules =
     app.modules.audit
 allow_indirect_imports = True
 
+[importlinter:contract:housekeeping-boundaries]
+name = housekeeping depends on auth, inventory, frontdesk
+type = forbidden
+source_modules =
+    app.modules.housekeeping
+forbidden_modules =
+    app.modules.rates
+    app.modules.availability
+    app.modules.guests
+    app.modules.billing
+    app.modules.audit
+allow_indirect_imports = True
+
+[importlinter:contract:reports-boundaries]
+name = reports depends on auth, inventory, reservations
+type = forbidden
+source_modules =
+    app.modules.reports
+forbidden_modules =
+    app.modules.rates
+    app.modules.availability
+    app.modules.guests
+    app.modules.billing
+    app.modules.frontdesk
+    app.modules.audit
+allow_indirect_imports = True
+
 [importlinter:contract:audit-boundaries]
 name = audit depends on auth only
 type = forbidden

@@ -42,6 +42,7 @@ ROLE_PERMISSIONS = {
         "billing.view",
         "billing.manage_tax",
         "audit.view",
+        "reports.view",
     ],
     "front_desk": [
         "inventory.view",
@@ -55,7 +56,7 @@ ROLE_PERMISSIONS = {
         "billing.post",
         "billing.close",
     ],
-    "housekeeping": ["inventory.view"],
+    "housekeeping": ["inventory.view", "housekeeping.view", "housekeeping.manage"],
 }
 
 ROOM_TYPES: list[dict[str, Any]] = [

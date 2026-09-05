@@ -17,6 +17,8 @@ DEFAULT_MODULES = (
     "reservations",
     "frontdesk",
     "billing",
+    "housekeeping",
+    "reports",
     "audit",
     "webui",
 )

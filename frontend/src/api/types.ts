@@ -116,6 +116,18 @@ export interface RateQuote {
   total_minor: number;
 }
 
+export interface Company {
+  id: number;
+  name: string;
+  is_travel_agent: boolean;
+  commission_pct: string | null;
+  tax_id: string;
+  email: string;
+  phone: string;
+  billing_address: string;
+  notes: string;
+}
+
 export interface Guest {
   id: number;
   first_name: string;
@@ -199,6 +211,7 @@ export interface RoomLineIn {
 
 export interface ReservationCreate {
   primary_guest_id: number;
+  company_id?: number | null;
   source?: ReservationSource;
   channel_name?: string;
   status?: ReservationStatus;
@@ -363,6 +376,61 @@ export interface TaxRule {
   is_active: boolean;
   sort_order: number;
   tax_inclusive: boolean;
+}
+
+export type HousekeepingStatus = "clean" | "dirty" | "inspected" | "out_of_service";
+
+export interface RoomHousekeepingRow {
+  room_id: number;
+  room_number: string;
+  floor: string;
+  room_type_id: number;
+  status: HousekeepingStatus;
+  updated_at: string | null;
+  updated_by: number | null;
+  note: string;
+}
+
+export type HousekeepingTaskStatus = "open" | "in_progress" | "done";
+
+export interface HousekeepingTask {
+  id: number;
+  room_id: number;
+  assigned_to: number | null;
+  status: HousekeepingTaskStatus;
+  description: string;
+  created_by: number | null;
+  completed_at: string | null;
+}
+
+export interface OccupancySummary {
+  date: string;
+  rooms_total: number;
+  rooms_occupied: number;
+  occupancy_pct: number;
+}
+
+export interface RevenueSummary {
+  start: string;
+  end: string;
+  room_revenue_minor: number;
+  room_nights_sold: number;
+  adr_minor: number;
+  revpar_minor: number;
+  currency: string;
+}
+
+export interface ArrivalsDeparturesRow {
+  date: string;
+  arrivals: number;
+  departures: number;
+}
+
+export interface NightAuditResult {
+  as_of: string;
+  night: string;
+  charges_posted: number;
+  no_shows_marked: number;
 }
 
 export interface AuditEvent {

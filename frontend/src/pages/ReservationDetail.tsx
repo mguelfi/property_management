@@ -1,6 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
+  useAmendReservation,
+  useCompanies,
   useFrontDeskActions,
   useReservation,
   useReservationAction,
@@ -9,6 +11,7 @@ import {
 } from "../api/hooks";
 import type { Room } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { AmendRoomsModal } from "../components/AmendRoomsModal";
 import { FolioPanel } from "../components/FolioPanel";
 import { GuestName } from "../components/GuestName";
 import { useToast } from "../components/Toaster";
@@ -25,8 +28,11 @@ export function ReservationDetail() {
   const { data: res, isLoading, error } = useReservation(rid);
   const roomTypes = useRoomTypeMap();
   const allRooms = useRooms();
+  const companies = useCompanies();
   const statusActions = useReservationAction(rid);
   const fd = useFrontDeskActions();
+  const amend = useAmendReservation(rid);
+  const [amending, setAmending] = useState(false);
 
   const roomNumbers = useMemo(
     () => new Map((allRooms.data ?? []).map((r) => [r.id, r.number])),
@@ -82,6 +88,14 @@ export function ReservationDetail() {
             <div className="lbl">Total</div>
             <div>{formatMoney(res.total_minor, res.currency)}</div>
           </div>
+          {res.company_id && (
+            <div className="stat">
+              <div className="lbl">Billed to</div>
+              <div>
+                {companies.data?.find((c) => c.id === res.company_id)?.name ?? `#${res.company_id}`}
+              </div>
+            </div>
+          )}
         </div>
         {res.cancellation_note && (
           <p className="muted" style={{ marginBottom: 0 }}>
@@ -141,6 +155,11 @@ export function ReservationDetail() {
               }
             >
               Confirm
+            </button>
+          )}
+          {canManage && ["inquiry", "confirmed"].includes(res.status) && (
+            <button className="btn" onClick={() => setAmending(true)}>
+              Amend
             </button>
           )}
           {canOperate && res.status === "confirmed" && unassigned > 0 && (
@@ -206,6 +225,26 @@ export function ReservationDetail() {
       </div>
 
       {showFolio && can("billing.view") && <FolioPanel reservationId={rid} />}
+
+      {amending && (
+        <AmendRoomsModal
+          reservation={res}
+          busy={amend.isPending}
+          onClose={() => setAmending(false)}
+          onSubmit={(rooms) =>
+            amend.mutate(
+              { rooms },
+              {
+                onSuccess: () => {
+                  toast.ok("Reservation amended");
+                  setAmending(false);
+                },
+                onError: toast.error,
+              },
+            )
+          }
+        />
+      )}
     </>
   );
 }
