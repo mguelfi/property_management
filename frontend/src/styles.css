@@ -579,3 +579,110 @@ table.data tr.group-row td {
   font-size: 11px;
   cursor: help;
 }
+
+/* -- kanban board -- */
+.board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.board-column-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 4px 4px 10px;
+}
+.board-column-head .count {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 12px;
+}
+.board-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 40px;
+}
+.board-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+}
+.board-card.dragging {
+  opacity: 0.5;
+}
+.board-column.drag-over .board-cards {
+  outline: 2px dashed var(--primary);
+  outline-offset: 4px;
+  border-radius: var(--radius);
+}
+.board-card-title {
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.board-card-meta {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+.board-card-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.board-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 18px 10px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+/* -- drawer -- */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 15, 22, 0.5);
+  z-index: 60;
+}
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 420px;
+  max-width: 92vw;
+  background: var(--surface);
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.25);
+  z-index: 61;
+  display: flex;
+  flex-direction: column;
+}
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.drawer-head h2 {
+  margin: 0;
+}
+.drawer-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+.drawer-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+}

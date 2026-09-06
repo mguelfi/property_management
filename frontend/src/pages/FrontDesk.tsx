@@ -1,24 +1,32 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import {
-  useAvailability,
-  useCreateGuest,
-  useFolioForReservation,
-  useFrontDeskActions,
-  useFrontDeskBoard,
-} from "../api/hooks";
+import { Link } from "react-router-dom";
+import { useFolioForReservation, useFrontDeskActions, useFrontDeskBoard } from "../api/hooks";
 import { useAuth } from "../auth/AuthContext";
+import { FrontDeskBoard } from "../components/frontdesk/FrontDeskBoard";
+import { WalkInForm } from "../components/frontdesk/WalkInForm";
 import { GuestName } from "../components/GuestName";
 import { useToast } from "../components/Toaster";
-import { EmptyState, ErrorText, Field, Spinner, TextInput } from "../components/ui";
-import { addDaysISO, fmtDate, todayISO } from "../lib/dates";
+import { EmptyState, ErrorText, Spinner } from "../components/ui";
+import { fmtDate } from "../lib/dates";
 import { formatMoney } from "../lib/money";
+import { useUITheme } from "../theme/UIThemeContext";
 import type { ArrivalRow } from "../api/types";
 
 type Tab = "arrivals" | "in-house" | "departures" | "walk-in";
 
 export function FrontDesk() {
+  const { isDense } = useUITheme();
   const [tab, setTab] = useState<Tab>("arrivals");
+
+  if (isDense) {
+    return (
+      <>
+        <h1>Front desk</h1>
+        <FrontDeskBoard />
+      </>
+    );
+  }
+
   return (
     <>
       <h1>Front desk</h1>
@@ -189,113 +197,9 @@ function CheckoutRow({ row }: { row: ArrivalRow }) {
 }
 
 function WalkInTab() {
-  const navigate = useNavigate();
-  const toast = useToast();
-  const [departure, setDeparture] = useState(addDaysISO(todayISO(), 1));
-  const [adults, setAdults] = useState(2);
-  const [pick, setPick] = useState<{ room_type_id: number; rate_plan_id: number } | null>(null);
-  const [guest, setGuest] = useState({ first_name: "", last_name: "" });
-
-  const arrival = todayISO();
-  const availability = useAvailability({
-    arrival,
-    departure,
-    adults,
-    children: 0,
-    enabled: departure > arrival,
-  });
-  const createGuest = useCreateGuest();
-  const fd = useFrontDeskActions();
-
-  async function submit() {
-    if (!pick) return toast.error("Choose a room");
-    if (!guest.first_name || !guest.last_name) return toast.error("Guest name required");
-    try {
-      const g = await createGuest.mutateAsync(guest);
-      const result = await fd.walkIn.mutateAsync({
-        primary_guest_id: g.id,
-        source: "walk_in",
-        status: "confirmed",
-        rooms: [{ ...pick, arrival, departure, adults, children: 0 }],
-      });
-      toast.ok(result.message);
-      navigate(`/reservations/${result.reservation.id}`);
-    } catch (err) {
-      toast.error(err);
-    }
-  }
-
   return (
     <div className="card">
-      <div className="form-row">
-        <Field label="Arrival">
-          <TextInput value={arrival} disabled />
-        </Field>
-        <Field label="Departure">
-          <TextInput type="date" value={departure} onChange={(e) => setDeparture(e.target.value)} />
-        </Field>
-        <Field label="Adults">
-          <TextInput
-            type="number"
-            min="1"
-            value={adults}
-            onChange={(e) => setAdults(Math.max(1, Number(e.target.value)))}
-          />
-        </Field>
-      </div>
-
-      {availability.isLoading && <Spinner />}
-      <ErrorText error={availability.error} />
-      {availability.data?.map((offer) => (
-        <div className="offer" key={offer.room_type_id}>
-          <div className="offer-head">
-            <span>{offer.room_type_name}</span>
-            <span className="muted">{offer.units_available} available</span>
-          </div>
-          {offer.rate_plans.map((rate) => {
-            const selected =
-              pick?.room_type_id === offer.room_type_id && pick?.rate_plan_id === rate.rate_plan_id;
-            return (
-              <div key={rate.rate_plan_id} className={`rate-option ${rate.sellable ? "" : "disabled"}`}>
-                <button
-                  className={`btn btn-sm ${selected ? "btn-primary" : ""}`}
-                  disabled={!rate.sellable || offer.units_available < 1}
-                  onClick={() =>
-                    setPick({ room_type_id: offer.room_type_id, rate_plan_id: rate.rate_plan_id })
-                  }
-                >
-                  {selected ? "Selected" : "Pick"}
-                </button>
-                <span>{rate.rate_plan_name}</span>
-                <span className="muted">{formatMoney(rate.total_minor, rate.currency)}</span>
-              </div>
-            );
-          })}
-        </div>
-      ))}
-
-      <div className="form-row">
-        <Field label="Guest first name">
-          <TextInput
-            value={guest.first_name}
-            onChange={(e) => setGuest({ ...guest, first_name: e.target.value })}
-          />
-        </Field>
-        <Field label="Guest last name">
-          <TextInput
-            value={guest.last_name}
-            onChange={(e) => setGuest({ ...guest, last_name: e.target.value })}
-          />
-        </Field>
-      </div>
-
-      <button
-        className="btn btn-primary"
-        disabled={fd.walkIn.isPending || createGuest.isPending}
-        onClick={submit}
-      >
-        {fd.walkIn.isPending ? "Creating…" : "Create walk-in & check in"}
-      </button>
+      <WalkInForm />
     </div>
   );
 }

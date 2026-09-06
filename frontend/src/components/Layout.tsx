@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { ADMIN_CODES } from "../auth/permissions";
+import { useUITheme } from "../theme/UIThemeContext";
 
 const NAV = [
   { to: "/", label: "Dashboard", end: true },
@@ -13,6 +14,7 @@ const NAV = [
 
 export function Layout() {
   const { me, logout, can } = useAuth();
+  const { isDense, toggle } = useUITheme();
   const navigate = useNavigate();
   const showAdmin = ADMIN_CODES.some((c) => can(c));
   const visibleNav = NAV.filter((n) => !n.perm || can(n.perm));
@@ -40,6 +42,15 @@ export function Layout() {
       <div className="main">
         <header className="topbar">
           <div className="topbar-spacer" />
+          <button
+            type="button"
+            className="btn btn-ghost"
+            aria-pressed={isDense}
+            onClick={toggle}
+            title="Switch between the standard layout and the dense/kanban layout"
+          >
+            {isDense ? "Dense/Kanban" : "Standard"} view
+          </button>
           <span className="user-name">{me?.full_name || me?.username}</span>
           <button
             className="btn btn-ghost"

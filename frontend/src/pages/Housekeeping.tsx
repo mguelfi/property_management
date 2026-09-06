@@ -8,6 +8,8 @@ import {
 } from "../api/hooks";
 import type { HousekeepingStatus, RoomHousekeepingRow } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { HousekeepingBoard } from "../components/housekeeping/HousekeepingBoard";
+import { TasksBoard } from "../components/housekeeping/TasksBoard";
 import { useToast } from "../components/Toaster";
 import {
   EmptyState,
@@ -19,22 +21,11 @@ import {
   Tabs,
   Textarea,
 } from "../components/ui";
-
-const STATUS_LABEL: Record<HousekeepingStatus, string> = {
-  clean: "Clean",
-  dirty: "Dirty",
-  inspected: "Inspected",
-  out_of_service: "Out of service",
-};
-
-const STATUS_OPTIONS: [string, string][] = [
-  ["clean", "Clean"],
-  ["dirty", "Dirty"],
-  ["inspected", "Inspected"],
-  ["out_of_service", "Out of service"],
-];
+import { STATUS_LABEL, STATUS_OPTIONS } from "../lib/housekeepingStatus";
+import { useUITheme } from "../theme/UIThemeContext";
 
 export function Housekeeping() {
+  const { isDense } = useUITheme();
   const [tab, setTab] = useState("board");
   return (
     <>
@@ -49,7 +40,17 @@ export function Housekeeping() {
         active={tab}
         onChange={setTab}
       />
-      {tab === "board" ? <BoardTab /> : <TasksTab />}
+      {tab === "board" ? (
+        isDense ? (
+          <HousekeepingBoard />
+        ) : (
+          <BoardTab />
+        )
+      ) : isDense ? (
+        <TasksBoard />
+      ) : (
+        <TasksTab />
+      )}
     </>
   );
 }
@@ -288,7 +289,7 @@ function TasksTab() {
   );
 }
 
-function TaskModal({
+export function TaskModal({
   rooms,
   busy,
   onClose,

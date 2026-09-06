@@ -249,7 +249,7 @@ export function ReservationDetail() {
   );
 }
 
-function RoomLineRow({
+export function RoomLineRow({
   line,
   typeName,
   currency,

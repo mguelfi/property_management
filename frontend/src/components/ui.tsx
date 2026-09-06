@@ -171,6 +171,33 @@ export function Modal({
   );
 }
 
+export function Drawer({
+  title,
+  onClose,
+  children,
+  footer,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+}) {
+  return (
+    <div className="drawer-overlay" onClick={onClose}>
+      <div className="drawer" role="dialog" aria-label={title} onClick={(e) => e.stopPropagation()}>
+        <div className="drawer-head">
+          <h2>{title}</h2>
+          <button className="btn btn-ghost" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
+        </div>
+        <div className="drawer-body">{children}</div>
+        {footer && <div className="drawer-footer">{footer}</div>}
+      </div>
+    </div>
+  );
+}
+
 export function EmptyState({ children }: { children: ReactNode }) {
   return <p className="empty">{children}</p>;
 }

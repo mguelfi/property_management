@@ -5,8 +5,10 @@ import { RouterProvider } from "react-router-dom";
 import { ApiError } from "./api/client";
 import { AuthProvider } from "./auth/AuthContext";
 import { ToastProvider } from "./components/Toaster";
+import { UIThemeProvider } from "./theme/UIThemeContext";
 import { router } from "./routes";
 import "./styles.css";
+import "./styles.dense.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,11 +22,13 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ToastProvider>
-          <RouterProvider router={router} />
-        </ToastProvider>
-      </AuthProvider>
+      <UIThemeProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <RouterProvider router={router} />
+          </ToastProvider>
+        </AuthProvider>
+      </UIThemeProvider>
     </QueryClientProvider>
   </StrictMode>,
 );
