@@ -1,0 +1,109 @@
+<meta charset="utf-8" />
+<title>Front Desk — Ops Dashboard</title>
+<link rel="stylesheet" href="../shared/reset.css" />
+<link rel="stylesheet" href="styles.css" />
+
+<div class="shell">
+  <nav class="rail">
+    <div class="rail-brand">PM</div>
+    <button class="rail-btn active" data-tab="arrivals">
+      <span class="ic">→</span>Arrivals<span class="rail-count" id="count-arrivals"></span>
+    </button>
+    <button class="rail-btn" data-tab="inhouse">
+      <span class="ic">🛏</span>In-house
+    </button>
+    <button class="rail-btn" data-tab="departures">
+      <span class="ic">←</span>Departs<span class="rail-count" id="count-departures"></span>
+    </button>
+    <button class="rail-btn" data-tab="walkin">
+      <span class="ic">+</span>Walk-in
+    </button>
+  </nav>
+
+  <main class="main">
+    <h1>Front desk</h1>
+    <p class="subtitle">Thursday, September 6, 2026</p>
+
+    <div class="kpi-row">
+      <div class="kpi"><div class="num" id="kpi-arrivals"></div><div class="lbl">Arrivals today</div></div>
+      <div class="kpi"><div class="num" id="kpi-inhouse"></div><div class="lbl">In-house</div></div>
+      <div class="kpi"><div class="num" id="kpi-departures"></div><div class="lbl">Departures today</div></div>
+      <div class="kpi flag"><div class="num" id="kpi-unassigned"></div><div class="lbl">Unassigned rooms</div></div>
+    </div>
+
+    <section id="tab-arrivals" class="tabpanel active">
+      <div class="panel">
+        <h2>Arrivals</h2>
+        <table class="data">
+          <thead>
+            <tr><th>Ref</th><th>Guest</th><th>Stay</th><th>Rooms</th><th class="actions-col">Actions</th></tr>
+          </thead>
+          <tbody id="arrivals-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="tab-inhouse" class="tabpanel">
+      <div class="panel">
+        <h2>In-house</h2>
+        <table class="data">
+          <thead>
+            <tr><th>Ref</th><th>Guest</th><th>Room</th><th>Departs</th><th class="num-cell">Balance</th><th class="actions-col">Actions</th></tr>
+          </thead>
+          <tbody id="inhouse-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="tab-departures" class="tabpanel">
+      <div class="panel">
+        <h2>Departures</h2>
+        <table class="data">
+          <thead>
+            <tr><th>Ref</th><th>Guest</th><th>Room</th><th class="num-cell">Balance</th><th class="actions-col">Actions</th></tr>
+          </thead>
+          <tbody id="departures-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="tab-walkin" class="tabpanel">
+      <div class="form-panel">
+        <div class="form-row">
+          <div class="field">
+            <label class="field-label" for="wi-arrival">Arrival</label>
+            <input class="input" id="wi-arrival" value="2026-09-06" disabled />
+          </div>
+          <div class="field">
+            <label class="field-label" for="wi-departure">Departure</label>
+            <input class="input" type="date" id="wi-departure" value="2026-09-07" />
+          </div>
+          <div class="field">
+            <label class="field-label" for="wi-adults">Adults</label>
+            <input class="input" type="number" id="wi-adults" min="1" value="2" />
+          </div>
+        </div>
+
+        <div id="wi-offers"></div>
+
+        <div class="form-row" style="margin-top: 4px">
+          <div class="field">
+            <label class="field-label" for="wi-first">Guest first name</label>
+            <input class="input" id="wi-first" placeholder="e.g. Jordan" />
+          </div>
+          <div class="field">
+            <label class="field-label" for="wi-last">Guest last name</label>
+            <input class="input" id="wi-last" placeholder="e.g. Rivera" />
+          </div>
+        </div>
+
+        <div class="form-footer">
+          <button class="btn btn-primary" id="wi-submit">Create walk-in &amp; check in</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="../shared/mock-data.js"></script>
+<script src="app.js"></script>

@@ -1,0 +1,254 @@
+<meta charset="utf-8" />
+<title>Front Desk Mockups</title>
+<link rel="stylesheet" href="shared/reset.css" />
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --surface: #ffffff;
+    --border: #dde1e7;
+    --text: #1b2027;
+    --text-muted: #626b78;
+    --accent: #3b5bdb;
+    --radius: 12px;
+    --shadow: 0 2px 8px rgba(20, 25, 35, 0.06);
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171c;
+      --surface: #1c2027;
+      --border: #2c313a;
+      --text: #e7e9ed;
+      --text-muted: #9aa1ac;
+      --accent: #7b93f0;
+      --shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 36px 24px 60px;
+  }
+  h1 {
+    font-size: 21px;
+    margin: 0 0 4px;
+  }
+  .lede {
+    color: var(--text-muted);
+    margin: 0 0 28px;
+    font-size: 13px;
+    max-width: 640px;
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 34px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+  }
+  .card .tag {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .card h2 {
+    font-size: 16px;
+    margin: 0 0 8px;
+  }
+  .card p {
+    color: var(--text-muted);
+    font-size: 12.5px;
+    margin: 0 0 14px;
+    flex: 1;
+  }
+  .card .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .card a.open {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .card a.open:hover {
+    text-decoration: underline;
+  }
+  .card label {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .compare-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .compare-toolbar h2 {
+    font-size: 14px;
+    margin: 0;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .compare-grid {
+    display: grid;
+    gap: 14px;
+  }
+  .compare-grid.n1 {
+    grid-template-columns: 1fr;
+  }
+  .compare-grid.n2 {
+    grid-template-columns: 1fr 1fr;
+  }
+  .compare-grid.n3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .compare-pane {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+  .compare-pane .pane-head {
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .compare-pane iframe {
+    width: 100%;
+    height: 640px;
+    border: none;
+    display: block;
+  }
+  .empty-compare {
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 30px;
+    text-align: center;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+  }
+</style>
+
+<div class="wrap">
+  <h1>Front desk — 3 mockups</h1>
+  <p class="lede">
+    Same check-in / front-desk workflow (arrivals, room assignment, check-in, checkout, walk-in
+    registration), three different design directions. Open each full-page, or check a box below
+    to line them up side by side.
+  </p>
+
+  <div class="cards">
+    <div class="card">
+      <div class="tag">Option A</div>
+      <h2>Dense ops dashboard</h2>
+      <p>
+        Dark command-center layout with a persistent nav rail and data-dense tables. One accent
+        color is reserved strictly for clickable actions, a second for "needs attention" flags —
+        everything else is plain neutral text. Editable fields get an inset, bordered "well" so
+        they never look like buttons or plain data.
+      </p>
+      <div class="row">
+        <a class="open" href="a-dashboard/index.html" target="_blank">Open full page →</a>
+        <label><input type="checkbox" data-compare="a-dashboard/index.html" /> Compare</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="tag">Option B</div>
+      <h2>Kanban board</h2>
+      <p>
+        Trello-style columns of guest cards with a colored top-stripe per column. Actions live in
+        a footer button row on each card; the card body itself is pure read-only text. Anything
+        fillable — assigning a room, registering a walk-in — opens in a slide-over drawer, so the
+        board is 100% "read + act" and the drawer is 100% "fill in."
+      </p>
+      <div class="row">
+        <a class="open" href="b-kanban/index.html" target="_blank">Open full page →</a>
+        <label><input type="checkbox" data-compare="b-kanban/index.html" /> Compare</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="tag">Option C</div>
+      <h2>Guided step-by-step wizard</h2>
+      <p>
+        A task-first landing screen (Check in / Check out / Register walk-in) leads into a
+        numbered, single-column stepper — one primary action per screen. Only one accent color
+        exists, used solely for that action; read-only summaries sit in borderless gray cards,
+        fillable fields in bordered white ones.
+      </p>
+      <div class="row">
+        <a class="open" href="c-wizard/index.html" target="_blank">Open full page →</a>
+        <label><input type="checkbox" data-compare="c-wizard/index.html" /> Compare</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="compare-toolbar">
+    <h2>Side-by-side compare</h2>
+  </div>
+  <div class="compare-grid n1" id="compare-grid">
+    <div class="empty-compare">Check one or more "Compare" boxes above to preview them here.</div>
+  </div>
+</div>
+
+<script>
+  const grid = document.getElementById("compare-grid");
+  const labels = {
+    "a-dashboard/index.html": "A — Dense ops dashboard",
+    "b-kanban/index.html": "B — Kanban board",
+    "c-wizard/index.html": "C — Guided wizard",
+  };
+
+  function renderCompare() {
+    const checked = Array.from(document.querySelectorAll("[data-compare]:checked")).map(
+      (el) => el.dataset.compare,
+    );
+    grid.classList.remove("n1", "n2", "n3");
+    if (!checked.length) {
+      grid.classList.add("n1");
+      grid.innerHTML =
+        '<div class="empty-compare">Check one or more "Compare" boxes above to preview them here.</div>';
+      return;
+    }
+    grid.classList.add("n" + Math.min(checked.length, 3));
+    grid.innerHTML = checked
+      .map(
+        (src) => `
+        <div class="compare-pane">
+          <div class="pane-head">${labels[src]}</div>
+          <iframe src="${src}"></iframe>
+        </div>`,
+      )
+      .join("");
+  }
+
+  document.querySelectorAll("[data-compare]").forEach((el) => el.addEventListener("change", renderCompare));
+</script>

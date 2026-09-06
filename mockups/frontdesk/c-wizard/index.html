@@ -1,0 +1,52 @@
+<meta charset="utf-8" />
+<title>Front Desk — Guided</title>
+<link rel="stylesheet" href="../shared/reset.css" />
+<link rel="stylesheet" href="styles.css" />
+
+<div class="wrap">
+  <div id="screen-landing" class="screen active">
+    <h1>Front desk</h1>
+    <p class="lede">Thursday, September 6, 2026 — choose a task to begin.</p>
+
+    <div class="tiles">
+      <button class="tile" data-open="checkin">
+        <span class="glyph">→</span>
+        <h2>Check in an arrival</h2>
+        <p>Assign a room and welcome a guest who's arriving today.</p>
+      </button>
+      <button class="tile" data-open="checkout">
+        <span class="glyph">←</span>
+        <h2>Check out a guest</h2>
+        <p>Settle the folio and release a room for a departing guest.</p>
+      </button>
+      <button class="tile" data-open="walkin">
+        <span class="glyph">+</span>
+        <h2>Register a walk-in</h2>
+        <p>Create a new reservation and check the guest in right away.</p>
+      </button>
+    </div>
+
+    <div class="glance" id="glance"></div>
+  </div>
+
+  <div id="screen-checkin" class="screen">
+    <button class="back-link" data-back>← Back to tasks</button>
+    <div class="stepper" id="checkin-stepper"></div>
+    <div class="step-body" id="checkin-body"></div>
+  </div>
+
+  <div id="screen-checkout" class="screen">
+    <button class="back-link" data-back>← Back to tasks</button>
+    <div class="stepper" id="checkout-stepper"></div>
+    <div class="step-body" id="checkout-body"></div>
+  </div>
+
+  <div id="screen-walkin" class="screen">
+    <button class="back-link" data-back>← Back to tasks</button>
+    <div class="stepper" id="walkin-stepper"></div>
+    <div class="step-body" id="walkin-body"></div>
+  </div>
+</div>
+
+<script src="../shared/mock-data.js"></script>
+<script src="app.js"></script>

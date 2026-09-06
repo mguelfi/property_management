@@ -1,0 +1,87 @@
+<meta charset="utf-8" />
+<title>Front Desk — Board</title>
+<link rel="stylesheet" href="../shared/reset.css" />
+<link rel="stylesheet" href="styles.css" />
+
+<div class="topbar">
+  <div>
+    <h1>Front desk board</h1>
+    <p>Thursday, September 6, 2026</p>
+  </div>
+  <button class="btn" id="open-walkin">+ New walk-in</button>
+</div>
+
+<div class="board">
+  <div class="column col-arrivals">
+    <div class="column-head"><span class="dot"></span>Arrivals<span class="count" id="count-arrivals"></span></div>
+    <div class="cards" id="col-arrivals"></div>
+  </div>
+  <div class="column col-inhouse">
+    <div class="column-head"><span class="dot"></span>In-house<span class="count" id="count-inhouse"></span></div>
+    <div class="cards" id="col-inhouse"></div>
+  </div>
+  <div class="column col-departures">
+    <div class="column-head"><span class="dot"></span>Departures<span class="count" id="count-departures"></span></div>
+    <div class="cards" id="col-departures"></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay"></div>
+
+<div class="drawer" id="drawer-assign">
+  <div class="drawer-head">
+    <h3>Assign a room</h3>
+    <button class="drawer-close" data-close>✕</button>
+  </div>
+  <div class="drawer-body">
+    <p class="summary" id="assign-summary"></p>
+    <div class="field-label" style="margin-bottom: 8px">Available rooms</div>
+    <div class="room-pick-list" id="room-pick-list"></div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" id="assign-confirm" style="width: 100%" disabled>Assign selected room</button>
+  </div>
+</div>
+
+<div class="drawer" id="drawer-walkin">
+  <div class="drawer-head">
+    <h3>Register walk-in</h3>
+    <button class="drawer-close" data-close>✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="form-row">
+      <div class="field">
+        <label class="field-label" for="wi-arrival">Arrival</label>
+        <input class="input" id="wi-arrival" value="2026-09-06" disabled />
+      </div>
+      <div class="field">
+        <label class="field-label" for="wi-departure">Departure</label>
+        <input class="input" type="date" id="wi-departure" value="2026-09-07" />
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label" for="wi-adults">Adults</label>
+      <input class="input" type="number" id="wi-adults" min="1" value="2" />
+    </div>
+
+    <div class="field-label" style="margin-bottom: 8px">Choose a room</div>
+    <div class="offer-scroll" id="wi-offers"></div>
+
+    <div class="form-row">
+      <div class="field">
+        <label class="field-label" for="wi-first">Guest first name</label>
+        <input class="input" id="wi-first" placeholder="Jordan" />
+      </div>
+      <div class="field">
+        <label class="field-label" for="wi-last">Guest last name</label>
+        <input class="input" id="wi-last" placeholder="Rivera" />
+      </div>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" id="wi-submit" style="width: 100%">Create walk-in &amp; check in</button>
+  </div>
+</div>
+
+<script src="../shared/mock-data.js"></script>
+<script src="app.js"></script>
