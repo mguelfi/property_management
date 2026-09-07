@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useFolioForReservation, useFrontDeskActions, useFrontDeskBoard } from "../api/hooks";
+import {
+  useFolioForReservation,
+  useFrontDeskActions,
+  useFrontDeskBoard,
+  useUndoAction,
+} from "../api/hooks";
 import { useAuth } from "../auth/AuthContext";
 import { AssignRoomDrawer } from "../components/frontdesk/AssignRoomDrawer";
 import { FrontDeskBoard } from "../components/frontdesk/FrontDeskBoard";
@@ -99,6 +104,7 @@ function ArrivalsTab({
   const toast = useToast();
   const { data, isLoading, error } = useFrontDeskBoard("arrivals");
   const fd = useFrontDeskActions();
+  const undo = useUndoAction();
   const canOperate = can("frontdesk.operate");
 
   if (isLoading) return <Spinner />;
@@ -164,8 +170,23 @@ function ArrivalsTab({
                           fd.checkIn.mutate(
                             { reservationId: r.id, upgrades: upgradesIn },
                             {
-                              onSuccess: () => {
-                                toast.ok(`${r.reference} checked in`);
+                              onSuccess: (data) => {
+                                toast.ok(
+                                  `${r.reference} checked in`,
+                                  data.audit_event_id
+                                    ? {
+                                        label: "Undo",
+                                        onClick: () =>
+                                          undo.mutate(
+                                            {
+                                              auditEventId: data.audit_event_id!,
+                                              reservationId: r.id,
+                                            },
+                                            { onError: toast.error },
+                                          ),
+                                      }
+                                    : undefined,
+                                );
                                 onCheckedIn(r.id);
                               },
                               onError: toast.error,
@@ -219,6 +240,7 @@ function CheckoutRow({ row }: { row: ArrivalRow }) {
   const toast = useToast();
   const folio = useFolioForReservation(row.id);
   const fd = useFrontDeskActions();
+  const undo = useUndoAction();
   const balance = folio.data?.balance_minor ?? 0;
   const currency = folio.data?.currency ?? "";
   const owes = balance !== 0;
@@ -245,7 +267,23 @@ function CheckoutRow({ row }: { row: ArrivalRow }) {
             onClick={() =>
               fd.checkOut.mutate(
                 { reservationId: row.id, allowBalance: owes },
-                { onSuccess: () => toast.ok(`${row.reference} checked out`), onError: toast.error },
+                {
+                  onSuccess: (data) =>
+                    toast.ok(
+                      `${row.reference} checked out`,
+                      data.audit_event_id
+                        ? {
+                            label: "Undo",
+                            onClick: () =>
+                              undo.mutate(
+                                { auditEventId: data.audit_event_id!, reservationId: row.id },
+                                { onError: toast.error },
+                              ),
+                          }
+                        : undefined,
+                    ),
+                  onError: toast.error,
+                },
               )
             }
           >

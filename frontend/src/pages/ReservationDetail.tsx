@@ -221,7 +221,20 @@ export function ReservationDetail() {
               disabled={unassigned > 0}
               onClick={() =>
                 fd.checkIn.mutate(rid, {
-                  onSuccess: () => toast.ok("Checked in"),
+                  onSuccess: (data) =>
+                    toast.ok(
+                      "Checked in",
+                      data.audit_event_id
+                        ? {
+                            label: "Undo",
+                            onClick: () =>
+                              undo.mutate(
+                                { auditEventId: data.audit_event_id!, reservationId: rid },
+                                { onError: toast.error },
+                              ),
+                          }
+                        : undefined,
+                    ),
                   onError: toast.error,
                 })
               }
