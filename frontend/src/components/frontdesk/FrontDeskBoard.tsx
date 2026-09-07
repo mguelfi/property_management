@@ -4,12 +4,13 @@ import { useFolioForReservation, useFrontDeskActions, useFrontDeskBoard } from "
 import { useAuth } from "../../auth/AuthContext";
 import { fmtDate } from "../../lib/dates";
 import { formatMoney } from "../../lib/money";
+import type { PendingUpgrade } from "../../pages/ReservationDetail";
 import { GuestName } from "../GuestName";
 import { useToast } from "../Toaster";
 import { EmptyState, ErrorText, Spinner } from "../ui";
 import { AssignRoomDrawer } from "./AssignRoomDrawer";
 import { WalkInDrawer } from "./WalkInDrawer";
-import type { ArrivalRow } from "../../api/types";
+import type { ArrivalRow, UpgradeChargeIn } from "../../api/types";
 
 /** Kanban presentation of the front desk: arrivals / in-house / departures as
  * card columns, with drawers for room assignment and walk-in registration.
@@ -17,6 +18,30 @@ import type { ArrivalRow } from "../../api/types";
 export function FrontDeskBoard() {
   const [assignFor, setAssignFor] = useState<number | null>(null);
   const [walkInOpen, setWalkInOpen] = useState(false);
+  const [pendingUpgrades, setPendingUpgrades] = useState<Map<number, Map<number, PendingUpgrade>>>(
+    new Map(),
+  );
+
+  function setPendingUpgrade(reservationId: number, lineId: number, upgrade: PendingUpgrade | null) {
+    setPendingUpgrades((prev) => {
+      const next = new Map(prev);
+      const forRes = new Map(next.get(reservationId) ?? []);
+      if (upgrade) forRes.set(lineId, upgrade);
+      else forRes.delete(lineId);
+      if (forRes.size) next.set(reservationId, forRes);
+      else next.delete(reservationId);
+      return next;
+    });
+  }
+
+  function clearPendingUpgrades(reservationId: number) {
+    setPendingUpgrades((prev) => {
+      if (!prev.has(reservationId)) return prev;
+      const next = new Map(prev);
+      next.delete(reservationId);
+      return next;
+    });
+  }
 
   return (
     <>
@@ -27,19 +52,36 @@ export function FrontDeskBoard() {
         </button>
       </div>
       <div className="board">
-        <ArrivalsColumn onAssign={setAssignFor} />
+        <ArrivalsColumn
+          onAssign={setAssignFor}
+          pendingUpgrades={pendingUpgrades}
+          onCheckedIn={clearPendingUpgrades}
+        />
         <StayColumn kind="in-house" title="In-house" />
         <StayColumn kind="departures" title="Departures" />
       </div>
       {assignFor !== null && (
-        <AssignRoomDrawer reservationId={assignFor} onClose={() => setAssignFor(null)} />
+        <AssignRoomDrawer
+          reservationId={assignFor}
+          onClose={() => setAssignFor(null)}
+          pendingUpgrades={pendingUpgrades.get(assignFor) ?? new Map()}
+          onPendingUpgrade={(lineId, upgrade) => setPendingUpgrade(assignFor, lineId, upgrade)}
+        />
       )}
       {walkInOpen && <WalkInDrawer onClose={() => setWalkInOpen(false)} />}
     </>
   );
 }
 
-function ArrivalsColumn({ onAssign }: { onAssign: (reservationId: number) => void }) {
+function ArrivalsColumn({
+  onAssign,
+  pendingUpgrades,
+  onCheckedIn,
+}: {
+  onAssign: (reservationId: number) => void;
+  pendingUpgrades: Map<number, Map<number, PendingUpgrade>>;
+  onCheckedIn: (reservationId: number) => void;
+}) {
   const { can } = useAuth();
   const toast = useToast();
   const { data, isLoading, error } = useFrontDeskBoard("arrivals");
@@ -56,47 +98,69 @@ function ArrivalsColumn({ onAssign }: { onAssign: (reservationId: number) => voi
       <ErrorText error={error} />
       {data && data.length === 0 && <EmptyState>No arrivals today.</EmptyState>}
       <div className="board-cards">
-        {data?.map((r: ArrivalRow) => (
-          <div className="board-card" key={r.id}>
-            <div className="board-card-title">
-              <Link to={`/reservations/${r.id}`}>{r.reference}</Link>
-            </div>
-            <div className="board-card-meta">
-              <GuestName id={r.primary_guest_id} />
-            </div>
-            <div className="board-card-meta">
-              {fmtDate(r.arrival)} → {fmtDate(r.departure)}
-            </div>
-            <div style={{ marginTop: 6 }}>
-              {r.unassigned_rooms > 0 ? (
-                <span className="badge badge-inquiry">{r.unassigned_rooms} unassigned</span>
-              ) : (
-                <span className="badge badge-in_house">assigned</span>
+        {data?.map((r: ArrivalRow) => {
+          const upgrades = pendingUpgrades.get(r.id);
+          return (
+            <div className="board-card" key={r.id}>
+              <div className="board-card-title">
+                <Link to={`/reservations/${r.id}`}>{r.reference}</Link>
+              </div>
+              <div className="board-card-meta">
+                <GuestName id={r.primary_guest_id} />
+              </div>
+              <div className="board-card-meta">
+                {fmtDate(r.arrival)} → {fmtDate(r.departure)}
+              </div>
+              <div style={{ marginTop: 6 }}>
+                {r.unassigned_rooms > 0 ? (
+                  <span className="badge badge-inquiry">{r.unassigned_rooms} unassigned</span>
+                ) : (
+                  <span className="badge badge-in_house">assigned</span>
+                )}
+                {upgrades && upgrades.size > 0 && (
+                  <span className="badge badge-confirmed" style={{ marginLeft: 6 }}>
+                    upgrade pending
+                  </span>
+                )}
+              </div>
+              {canOperate && (
+                <div className="board-card-actions">
+                  {r.unassigned_rooms > 0 && (
+                    <button className="btn btn-sm" onClick={() => onAssign(r.id)}>
+                      Assign room
+                    </button>
+                  )}
+                  <button
+                    className="btn btn-sm btn-primary"
+                    disabled={r.unassigned_rooms > 0}
+                    onClick={() => {
+                      const upgradesIn: UpgradeChargeIn[] = Array.from(
+                        upgrades?.entries() ?? [],
+                      ).map(([lineId, u]) => ({
+                        line_id: lineId,
+                        amount_minor: u.amountMinor,
+                        from_view_id: u.fromViewId,
+                        to_view_id: u.toViewId,
+                      }));
+                      fd.checkIn.mutate(
+                        { reservationId: r.id, upgrades: upgradesIn },
+                        {
+                          onSuccess: () => {
+                            toast.ok(`${r.reference} checked in`);
+                            onCheckedIn(r.id);
+                          },
+                          onError: toast.error,
+                        },
+                      );
+                    }}
+                  >
+                    Check in
+                  </button>
+                </div>
               )}
             </div>
-            {canOperate && (
-              <div className="board-card-actions">
-                {r.unassigned_rooms > 0 && (
-                  <button className="btn btn-sm" onClick={() => onAssign(r.id)}>
-                    Assign room
-                  </button>
-                )}
-                <button
-                  className="btn btn-sm btn-primary"
-                  disabled={r.unassigned_rooms > 0}
-                  onClick={() =>
-                    fd.checkIn.mutate(r.id, {
-                      onSuccess: () => toast.ok(`${r.reference} checked in`),
-                      onError: toast.error,
-                    })
-                  }
-                >
-                  Check in
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

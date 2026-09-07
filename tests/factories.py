@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.security import hash_password
 from app.modules.auth.models import Permission, Role, User
 from app.modules.guests.models import Guest
-from app.modules.inventory.models import Property, Room, RoomType
+from app.modules.inventory.models import Property, Room, RoomType, RoomView
 from app.modules.rates import service as rates_service
 from app.modules.rates.models import RatePlan
 
@@ -47,6 +47,17 @@ def make_room_type(
         db.add(Room(number=f"{code}-{i + 1}", room_type_id=rt.id))
     db.flush()
     return rt
+
+
+def make_room_view(
+    db: Session, *, code: str = "OCEAN", sort_order: int = 200, surcharge_minor: int = 3000
+) -> RoomView:
+    rv = RoomView(
+        code=code, name=code.title(), sort_order=sort_order, surcharge_minor=surcharge_minor
+    )
+    db.add(rv)
+    db.flush()
+    return rv
 
 
 def make_rate_plan(

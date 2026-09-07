@@ -3,12 +3,13 @@ from __future__ import annotations
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.rbac import require
 from app.core.security import CurrentUserDep
+from app.modules.inventory import service as inv_service
 from app.modules.reservations import service as res_service
 from app.modules.reservations.models import Reservation
 from app.modules.reservations.schemas import ReservationOut
@@ -17,10 +18,12 @@ from . import service
 from .schemas import (
     ArrivalRow,
     AssignIn,
+    CheckInIn,
     CheckOutIn,
     FrontDeskAction,
     NightAuditIn,
     NightAuditOut,
+    UpgradeQuoteOut,
     WalkInCreate,
 )
 
@@ -93,9 +96,38 @@ def auto_assign(reservation_id: int, db: DbDep, user: CurrentUserDep) -> Reserva
     response_model=ReservationOut,
     dependencies=[operate],
 )
-def checkin(reservation_id: int, db: DbDep, user: CurrentUserDep) -> ReservationOut:
-    res = service.check_in(db, reservation_id=reservation_id, actor_id=user.id)
+def checkin(
+    reservation_id: int,
+    db: DbDep,
+    user: CurrentUserDep,
+    payload: Annotated[CheckInIn, Body(default_factory=CheckInIn)],
+) -> ReservationOut:
+    res = service.check_in(
+        db, reservation_id=reservation_id, actor_id=user.id, upgrades=payload.upgrades
+    )
     return ReservationOut.model_validate(res)
+
+
+@router.get(
+    "/reservations/{reservation_id}/rooms/{line_id}/upgrade-quote",
+    response_model=UpgradeQuoteOut,
+    dependencies=[operate],
+)
+def upgrade_quote(
+    reservation_id: int, line_id: int, room_id: int, db: DbDep
+) -> UpgradeQuoteOut:
+    reservation = res_service.get_reservation(db, reservation_id)
+    line = service.get_line(db, reservation, line_id)
+    candidate_room = inv_service.get_room(db, room_id)
+    quote = service.price_upgrade(db, line=line, candidate_room=candidate_room)
+    return UpgradeQuoteOut(
+        nights=quote.nights,
+        room_type_delta_minor=quote.room_type_delta_minor,
+        view_surcharge_minor=quote.view_surcharge_minor,
+        total_minor=quote.total_minor,
+        from_view_id=quote.from_view_id,
+        to_view_id=quote.to_view_id,
+    )
 
 
 @router.post(

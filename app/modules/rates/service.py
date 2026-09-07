@@ -184,3 +184,20 @@ def restriction_for(
             RateRestriction.date == day,
         )
     )
+
+
+class RatesServiceImpl:
+    """Implements :class:`app.core.services.RatesService` for the registry, so
+    other modules (e.g. frontdesk, pricing a room-type upgrade) can resolve a
+    nightly rate without importing this package directly."""
+
+    def nightly_amount(
+        self, session: Session, *, rate_plan_id: int, room_type_id: int, day: date
+    ) -> int | None:
+        plan = session.get(RatePlan, rate_plan_id)
+        if plan is None:
+            return None
+        return nightly_amount(session, plan, room_type_id, day)
+
+
+service_impl = RatesServiceImpl()

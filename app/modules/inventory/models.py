@@ -48,6 +48,26 @@ class RoomType(Base, TimestampMixin):
     rooms: Mapped[list[Room]] = relationship(back_populates="room_type")
 
 
+class RoomView(Base, TimestampMixin):
+    """Admin-editable view tiers (e.g. Garden/Pool/Ocean), ranked by desirability.
+
+    ``sort_order`` doubles as the desirability rank used to decide whether a
+    candidate room is a "better view" upgrade; ``surcharge_minor`` is the flat
+    per-night premium suggested when upgrading a guest into that view.
+    """
+
+    __tablename__ = "inv_room_views"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(80))
+    sort_order: Mapped[int] = mapped_column(Integer, default=100)
+    surcharge_minor: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    rooms: Mapped[list[Room]] = relationship(back_populates="view")
+
+
 class Room(Base, TimestampMixin):
     __tablename__ = "inv_rooms"
 
@@ -61,11 +81,15 @@ class Room(Base, TimestampMixin):
     adjoining_room_id: Mapped[int | None] = mapped_column(
         ForeignKey("inv_rooms.id"), index=True, nullable=True
     )
+    view_id: Mapped[int | None] = mapped_column(
+        ForeignKey("inv_room_views.id"), index=True, nullable=True
+    )
 
     room_type: Mapped[RoomType] = relationship(back_populates="rooms", lazy="joined")
     adjoining_room: Mapped[Room | None] = relationship(
         "Room", remote_side=[id], foreign_keys=[adjoining_room_id], lazy="joined"
     )
+    view: Mapped[RoomView | None] = relationship(back_populates="rooms", lazy="joined")
 
 
 class BlockReason(enum.StrEnum):

@@ -1,16 +1,22 @@
 import { useMemo } from "react";
 import { useFrontDeskActions, useReservation, useRoomTypeMap, useRooms } from "../../api/hooks";
 import { useAuth } from "../../auth/AuthContext";
-import { RoomLineRow } from "../../pages/ReservationDetail";
+import { RoomLineRow, type PendingUpgrade } from "../../pages/ReservationDetail";
 import { useToast } from "../Toaster";
 import { Drawer, ErrorText, Spinner } from "../ui";
 
 export function AssignRoomDrawer({
   reservationId,
   onClose,
+  pendingUpgrades,
+  onPendingUpgrade,
 }: {
   reservationId: number;
   onClose: () => void;
+  /** Line id -> pending upgrade charge to include at check-in, lifted up to
+   * FrontDeskBoard so it survives this drawer closing/reopening. */
+  pendingUpgrades: Map<number, PendingUpgrade>;
+  onPendingUpgrade: (lineId: number, upgrade: PendingUpgrade | null) => void;
 }) {
   const { can } = useAuth();
   const toast = useToast();
@@ -49,6 +55,10 @@ export function AssignRoomDrawer({
               </button>
             </div>
           )}
+          <p className="muted" style={{ fontSize: 12.5, marginTop: -4 }}>
+            Picking a room of a different type or a better view offers a free or paid upgrade,
+            charged at check-in.
+          </p>
           <div className="table-wrap">
             <table className="data">
               <thead>
@@ -69,12 +79,23 @@ export function AssignRoomDrawer({
                     currency={res.currency}
                     roomNumbers={roomNumbers}
                     canAssign={canAssign}
-                    onAssign={(roomId) =>
+                    allowUpgrade
+                    reservationId={reservationId}
+                    pendingUpgrade={pendingUpgrades.get(line.id) ?? null}
+                    onPendingUpgrade={(upgrade) => onPendingUpgrade(line.id, upgrade)}
+                    onAssign={(roomId, opts) =>
                       fd.assign.mutate(
-                        { reservationId, lineId: line.id, roomId },
                         {
-                          onSuccess: () =>
-                            toast.ok(line.assigned_room_id ? "Room changed" : "Room assigned"),
+                          reservationId,
+                          lineId: line.id,
+                          roomId,
+                          allowTypeMismatch: opts?.allowTypeMismatch,
+                        },
+                        {
+                          onSuccess: () => {
+                            toast.ok(line.assigned_room_id ? "Room changed" : "Room assigned");
+                            opts?.onAssigned?.();
+                          },
                           onError: toast.error,
                         },
                       )

@@ -11,6 +11,7 @@ const CHARGE_CATEGORIES: [string, string][] = [
   ["room_service", "Room service"],
   ["food_beverage", "Food & beverage"],
   ["fee", "Fee"],
+  ["upgrade", "Room upgrade"],
   ["misc", "Miscellaneous"],
   ["room", "Room"],
   ["deposit", "Deposit"],

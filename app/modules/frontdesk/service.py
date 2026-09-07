@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 
@@ -7,12 +8,12 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.sql.elements import ColumnElement
 
-from app.core.daterange import overlaps
+from app.core.daterange import nights, overlaps
 from app.core.enums import ChargeCategory
 from app.core.errors import Conflict, NotFound, ValidationProblem
 from app.core.events import bus
 from app.core.service_registry import get_service
-from app.core.services import FolioService
+from app.core.services import FolioService, RatesService
 from app.modules.inventory.models import Room, RoomBlock
 from app.modules.reservations import service as res_service
 from app.modules.reservations.models import (
@@ -22,8 +23,9 @@ from app.modules.reservations.models import (
     ReservationStatus,
 )
 
-from .events import GuestCheckedIn, GuestCheckedOut, NightAuditRun, RoomAssigned
+from .events import GuestCheckedIn, GuestCheckedOut, NightAuditRun, RoomAssigned, RoomUpgraded
 from .models import AssignmentAction, RoomAssignmentLog
+from .schemas import UpgradeChargeIn
 
 
 def _now() -> datetime:
@@ -34,7 +36,11 @@ def _folio() -> FolioService:
     return get_service(FolioService)
 
 
-def _get_line(session: Session, reservation: Reservation, line_id: int) -> ReservationRoom:
+def _rates() -> RatesService:
+    return get_service(RatesService)
+
+
+def get_line(session: Session, reservation: Reservation, line_id: int) -> ReservationRoom:
     for line in reservation.rooms:
         if line.id == line_id:
             return line
@@ -78,7 +84,7 @@ def assign_room(
         ReservationStatus.in_house,
     ):
         raise Conflict(f"Cannot assign rooms in status {reservation.status.value}")
-    line = _get_line(session, reservation, line_id)
+    line = get_line(session, reservation, line_id)
     room = session.get(Room, room_id)
     if room is None or not room.is_active:
         raise NotFound("Room not found or inactive")
@@ -115,6 +121,58 @@ def assign_room(
     return line
 
 
+@dataclass(frozen=True, kw_only=True)
+class UpgradeQuote:
+    """A read-only suggestion for the price of upgrading a line into
+    ``candidate_room`` — never enforced; staff may charge any amount."""
+
+    nights: int
+    room_type_delta_minor: int
+    view_surcharge_minor: int
+    total_minor: int
+    from_view_id: int | None
+    to_view_id: int | None
+
+
+def price_upgrade(
+    session: Session, *, line: ReservationRoom, candidate_room: Room
+) -> UpgradeQuote:
+    night_count = (line.departure - line.arrival).days
+
+    room_type_delta = 0
+    if candidate_room.room_type_id != line.room_type_id:
+        rates = _rates()
+        for day in nights(line.arrival, line.departure):
+            new_amt = rates.nightly_amount(
+                session,
+                rate_plan_id=line.rate_plan_id,
+                room_type_id=candidate_room.room_type_id,
+                day=day,
+            )
+            old_amt = rates.nightly_amount(
+                session, rate_plan_id=line.rate_plan_id, room_type_id=line.room_type_id, day=day
+            )
+            room_type_delta += max((new_amt or 0) - (old_amt or 0), 0)
+
+    current_room = (
+        session.get(Room, line.assigned_room_id) if line.assigned_room_id else None
+    )
+    from_view = current_room.view if current_room else None
+    to_view = candidate_room.view
+    view_surcharge = 0
+    if to_view is not None and (from_view is None or to_view.sort_order > from_view.sort_order):
+        view_surcharge = to_view.surcharge_minor * night_count
+
+    return UpgradeQuote(
+        nights=night_count,
+        room_type_delta_minor=room_type_delta,
+        view_surcharge_minor=view_surcharge,
+        total_minor=room_type_delta + view_surcharge,
+        from_view_id=from_view.id if from_view else None,
+        to_view_id=to_view.id if to_view else None,
+    )
+
+
 def auto_assign(
     session: Session, *, reservation_id: int, actor_id: int | None
 ) -> list[ReservationRoom]:
@@ -148,14 +206,47 @@ def auto_assign(
 
 
 def check_in(
-    session: Session, *, reservation_id: int, actor_id: int | None
+    session: Session,
+    *,
+    reservation_id: int,
+    actor_id: int | None,
+    upgrades: Sequence[UpgradeChargeIn] = (),
 ) -> Reservation:
     reservation = res_service.get_reservation(session, reservation_id)
     unassigned = [ln.id for ln in reservation.rooms if ln.assigned_room_id is None]
     if unassigned:
         raise Conflict(f"All rooms must be assigned before check-in (missing: {unassigned})")
     res_service.mark_in_house(session, reservation)
-    _folio().get_or_open_folio(session, reservation_id=reservation_id)
+    folio_id = _folio().get_or_open_folio(session, reservation_id=reservation_id)
+
+    for upgrade in upgrades:
+        line = get_line(session, reservation, upgrade.line_id)
+        room = session.get(Room, line.assigned_room_id) if line.assigned_room_id else None
+        description = upgrade.description or f"Room upgrade — {room.number if room else line.id}"
+        if upgrade.amount_minor > 0:
+            _folio().post_charge(
+                session,
+                folio_id=folio_id,
+                category=ChargeCategory.upgrade,
+                description=description,
+                amount_minor=upgrade.amount_minor,
+                actor_id=actor_id,
+                source="upgrade",
+                reference=f"line:{line.id}",
+            )
+        bus.publish(
+            RoomUpgraded(
+                reservation_id=reservation.id,
+                line_id=line.id,
+                room_id=line.assigned_room_id or 0,
+                from_view_id=upgrade.from_view_id,
+                to_view_id=upgrade.to_view_id,
+                charge_amount_minor=upgrade.amount_minor,
+                actor_id=actor_id,
+            ),
+            session,
+        )
+
     room_ids = tuple(ln.assigned_room_id for ln in reservation.rooms if ln.assigned_room_id)
     bus.publish(
         GuestCheckedIn(

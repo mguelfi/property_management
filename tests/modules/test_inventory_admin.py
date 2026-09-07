@@ -174,3 +174,81 @@ def test_patch_block(client, db, rooms, auth_headers):
         json={"end_date": str(date.today() - timedelta(days=1))},
     )
     assert bad.status_code == 422
+
+
+# --- room views ---------------------------------------------------------- #
+
+
+def test_create_room_view(client, auth_headers):
+    resp = client.post(
+        "/api/inventory/room-views",
+        headers=auth_headers,
+        json={"code": "OCEAN", "name": "Ocean", "sort_order": 200, "surcharge_minor": 3000},
+    )
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["code"] == "OCEAN"
+    assert body["surcharge_minor"] == 3000
+    assert body["is_active"] is True
+
+
+def test_room_view_code_must_be_unique(client, auth_headers):
+    payload = {"code": "OCEAN", "name": "Ocean", "sort_order": 200, "surcharge_minor": 3000}
+    client.post("/api/inventory/room-views", headers=auth_headers, json=payload)
+    dup = client.post("/api/inventory/room-views", headers=auth_headers, json=payload)
+    assert dup.status_code == 422
+
+
+def test_update_room_view(client, db, auth_headers):
+    from tests.factories import make_room_view
+
+    rv = make_room_view(db, code="GARDEN", sort_order=100, surcharge_minor=0)
+    resp = client.patch(
+        f"/api/inventory/room-views/{rv.id}",
+        headers=auth_headers,
+        json={"surcharge_minor": 1500, "sort_order": 150},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["surcharge_minor"] == 1500
+    assert resp.json()["sort_order"] == 150
+
+
+def test_deactivate_room_view(client, db, auth_headers):
+    from tests.factories import make_room_view
+
+    rv = make_room_view(db)
+    resp = client.delete(f"/api/inventory/room-views/{rv.id}", headers=auth_headers)
+    assert resp.status_code == 204
+    assert service.get_room_view(db, rv.id).is_active is False
+
+
+def test_room_carries_view_fields(client, db, rooms, auth_headers):
+    from tests.factories import make_room_view
+
+    rv = make_room_view(db, code="POOL", surcharge_minor=1000)
+    # Expire the fixture's in-memory room so the PATCH request's `get_room`
+    # performs a *real* eager-joined SELECT (loading `view=None`) before the
+    # FK changes — matching what happens on a real (fresh-session) HTTP
+    # request. Without this, the object is already identity-mapped from the
+    # fixture and `session.get()` is a no-op, masking the staleness bug this
+    # test guards against (a stale cached `view` after changing `view_id`).
+    db.expire(rooms["a"])
+    resp = client.patch(
+        f"/api/inventory/rooms/{rooms['a'].id}",
+        headers=auth_headers,
+        json={"view_id": rv.id},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["view_id"] == rv.id
+    assert body["view_name"] == "Pool"
+    assert body["view_surcharge_minor"] == 1000
+
+
+def test_room_view_unknown_id_rejected(client, rooms, auth_headers):
+    resp = client.patch(
+        f"/api/inventory/rooms/{rooms['a'].id}",
+        headers=auth_headers,
+        json={"view_id": 999999},
+    )
+    assert resp.status_code == 404

@@ -12,7 +12,7 @@ from app.core.rbac import require
 from app.core.security import CurrentUserDep
 
 from . import service
-from .models import Room, RoomBlock, RoomType
+from .models import Room, RoomBlock, RoomType, RoomView
 from .schemas import (
     PropertyOut,
     PropertyUpdate,
@@ -25,6 +25,9 @@ from .schemas import (
     RoomTypeOut,
     RoomTypeUpdate,
     RoomUpdate,
+    RoomViewIn,
+    RoomViewOut,
+    RoomViewUpdate,
 )
 
 router = APIRouter()
@@ -36,6 +39,8 @@ manage = require("inventory.manage")
 def _room_out(room: Room) -> RoomOut:
     out = RoomOut.model_validate(room)
     out.adjoining_room_number = room.adjoining_room.number if room.adjoining_room else None
+    out.view_name = room.view.name if room.view else None
+    out.view_surcharge_minor = room.view.surcharge_minor if room.view else None
     return out
 
 
@@ -81,6 +86,36 @@ def update_room_type(room_type_id: int, payload: RoomTypeUpdate, db: DbDep) -> R
 @router.delete("/room-types/{room_type_id}", status_code=204, dependencies=[manage])
 def deactivate_room_type(room_type_id: int, db: DbDep) -> None:
     service.deactivate_room_type(db, room_type_id)
+
+
+@router.get("/room-views", response_model=list[RoomViewOut], dependencies=[view])
+def list_room_views(
+    db: DbDep, include_inactive: Annotated[bool, Query()] = False
+) -> list[RoomView]:
+    stmt = select(RoomView).order_by(RoomView.sort_order, RoomView.code)
+    if not include_inactive:
+        stmt = stmt.where(RoomView.is_active.is_(True))
+    return list(db.scalars(stmt))
+
+
+@router.post("/room-views", response_model=RoomViewOut, status_code=201, dependencies=[manage])
+def create_room_view(payload: RoomViewIn, db: DbDep) -> RoomView:
+    return service.create_room_view(db, payload.model_dump())
+
+
+@router.get("/room-views/{view_id}", response_model=RoomViewOut, dependencies=[view])
+def get_room_view(view_id: int, db: DbDep) -> RoomView:
+    return service.get_room_view(db, view_id)
+
+
+@router.patch("/room-views/{view_id}", response_model=RoomViewOut, dependencies=[manage])
+def update_room_view(view_id: int, payload: RoomViewUpdate, db: DbDep) -> RoomView:
+    return service.update_room_view(db, view_id, payload.model_dump(exclude_unset=True))
+
+
+@router.delete("/room-views/{view_id}", status_code=204, dependencies=[manage])
+def deactivate_room_view(view_id: int, db: DbDep) -> None:
+    service.deactivate_room_view(db, view_id)
 
 
 @router.get("/rooms", response_model=list[RoomOut], dependencies=[view])

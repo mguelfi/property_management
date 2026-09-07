@@ -33,7 +33,10 @@ import type {
   RoomLineIn,
   RoomType,
   RoomTypeOffer,
+  RoomView,
   TaxRule,
+  UpgradeChargeIn,
+  UpgradeQuote,
 } from "./types";
 
 // -- inventory / property ------------------------------------------------- //
@@ -60,6 +63,13 @@ export function useRoomTypeMap() {
   const { data } = useRoomTypes();
   return new Map((data ?? []).map((rt) => [rt.id, rt]));
 }
+
+export const useRoomViews = () =>
+  useQuery({
+    queryKey: ["room-views"],
+    queryFn: () => api<RoomView[]>("/api/inventory/room-views"),
+    staleTime: 5 * 60_000,
+  });
 
 // -- guests -------------------------------------------------------------- //
 
@@ -253,10 +263,18 @@ export function useFrontDeskActions() {
   };
   return {
     assign: useMutation({
-      mutationFn: (v: { reservationId: number; lineId: number; roomId: number }) =>
+      mutationFn: (v: {
+        reservationId: number;
+        lineId: number;
+        roomId: number;
+        allowTypeMismatch?: boolean;
+      }) =>
         api<Reservation>(
           `/api/frontdesk/reservations/${v.reservationId}/rooms/${v.lineId}/assign`,
-          { method: "POST", body: { room_id: v.roomId } },
+          {
+            method: "POST",
+            body: { room_id: v.roomId, allow_type_mismatch: v.allowTypeMismatch ?? false },
+          },
         ),
       onSuccess: (_d, v) => invalidate(v.reservationId),
     }),
@@ -268,9 +286,15 @@ export function useFrontDeskActions() {
       onSuccess: (_d, id) => invalidate(id),
     }),
     checkIn: useMutation({
-      mutationFn: (reservationId: number) =>
-        api<Reservation>(`/api/frontdesk/reservations/${reservationId}/checkin`, { method: "POST" }),
-      onSuccess: (_d, id) => invalidate(id),
+      mutationFn: (v: number | { reservationId: number; upgrades?: UpgradeChargeIn[] }) => {
+        const reservationId = typeof v === "number" ? v : v.reservationId;
+        const upgrades = typeof v === "number" ? undefined : v.upgrades;
+        return api<Reservation>(`/api/frontdesk/reservations/${reservationId}/checkin`, {
+          method: "POST",
+          body: { upgrades: upgrades ?? [] },
+        });
+      },
+      onSuccess: (_d, v) => invalidate(typeof v === "number" ? v : v.reservationId),
     }),
     checkOut: useMutation({
       mutationFn: (v: { reservationId: number; allowBalance: boolean }) =>
@@ -290,6 +314,21 @@ export function useFrontDeskActions() {
     }),
   };
 }
+
+export const useUpgradeQuote = (
+  reservationId: number,
+  lineId: number,
+  roomId: number | null,
+) =>
+  useQuery({
+    queryKey: ["upgrade-quote", reservationId, lineId, roomId],
+    queryFn: () =>
+      api<UpgradeQuote>(
+        `/api/frontdesk/reservations/${reservationId}/rooms/${lineId}/upgrade-quote`,
+        { query: { room_id: roomId } },
+      ),
+    enabled: roomId != null,
+  });
 
 // -- billing / folio ------------------------------------------------- //
 
@@ -459,6 +498,39 @@ export const useFloors = () =>
     queryFn: () => api<string[]>("/api/inventory/rooms/floors"),
     staleTime: 60_000,
   });
+
+export const useAdminRoomViews = () =>
+  useQuery({
+    queryKey: ["admin-room-views"],
+    queryFn: () =>
+      api<RoomView[]>("/api/inventory/room-views", { query: { include_inactive: true } }),
+    staleTime: 60_000,
+  });
+
+export function useRoomViewAdminActions() {
+  const qc = useQueryClient();
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["admin-room-views"] });
+    qc.invalidateQueries({ queryKey: ["room-views"] });
+  };
+  return {
+    create: useMutation({
+      mutationFn: (body: Record<string, unknown>) =>
+        api<RoomView>("/api/inventory/room-views", { method: "POST", body }),
+      onSuccess: invalidate,
+    }),
+    update: useMutation({
+      mutationFn: (v: { id: number; body: Record<string, unknown> }) =>
+        api<RoomView>(`/api/inventory/room-views/${v.id}`, { method: "PATCH", body: v.body }),
+      onSuccess: invalidate,
+    }),
+    deactivate: useMutation({
+      mutationFn: (id: number) =>
+        api<void>(`/api/inventory/room-views/${id}`, { method: "DELETE" }),
+      onSuccess: invalidate,
+    }),
+  };
+}
 
 export function useRoomTypeAdminActions() {
   const qc = useQueryClient();

@@ -10,7 +10,7 @@ from app.core.config import get_settings
 from app.core.errors import NotFound, ValidationProblem
 from app.core.pagination import PageParams, paginate
 
-from .models import Property, Room, RoomBlock, RoomType
+from .models import Property, Room, RoomBlock, RoomType, RoomView
 
 PROPERTY_ID = 1
 _UNSET = object()
@@ -77,6 +77,39 @@ def deactivate_room_type(session: Session, room_type_id: int) -> RoomType:
     return rt
 
 
+def get_room_view(session: Session, view_id: int) -> RoomView:
+    rv = session.get(RoomView, view_id)
+    if rv is None:
+        raise NotFound("Room view not found")
+    return rv
+
+
+def create_room_view(session: Session, data: dict[str, Any]) -> RoomView:
+    if session.scalar(select(RoomView).where(RoomView.code == data["code"])):
+        raise ValidationProblem("Room view code already exists")
+    rv = RoomView(**data)
+    session.add(rv)
+    session.flush()
+    return rv
+
+
+def update_room_view(session: Session, view_id: int, changes: dict[str, Any]) -> RoomView:
+    rv = get_room_view(session, view_id)
+    for key, value in changes.items():
+        setattr(rv, key, value)
+    session.flush()
+    return rv
+
+
+def deactivate_room_view(session: Session, view_id: int) -> RoomView:
+    """Soft-delete: RoomView is a plain FK target (rooms) with no ``ON DELETE``,
+    so it is never hard-deleted."""
+    rv = get_room_view(session, view_id)
+    rv.is_active = False
+    session.flush()
+    return rv
+
+
 def get_room(session: Session, room_id: int) -> Room:
     room = session.get(Room, room_id)
     if room is None:
@@ -88,6 +121,8 @@ def create_room(session: Session, data: dict[str, Any]) -> Room:
     if session.scalar(select(Room).where(Room.number == data["number"])):
         raise ValidationProblem("Room number already exists")
     get_room_type(session, int(data["room_type_id"]))  # validate FK
+    if data.get("view_id") is not None:
+        get_room_view(session, int(data["view_id"]))  # validate FK
     room = Room(**data)
     session.add(room)
     session.flush()
@@ -99,9 +134,16 @@ def update_room(session: Session, room_id: int, changes: dict[str, Any]) -> Room
     adjoining = changes.pop("adjoining_room_id", _UNSET)
     if "room_type_id" in changes:
         get_room_type(session, int(changes["room_type_id"]))
+    if changes.get("view_id") is not None:
+        get_room_view(session, int(changes["view_id"]))
     for key, value in changes.items():
         setattr(room, key, value)
     session.flush()
+    if "view_id" in changes:
+        # the `view` relationship may already be cached (e.g. as None) from
+        # the `get_room` load above; expire it so callers reading `room.view`
+        # right after this call see the new FK, not a stale cached value.
+        session.expire(room, ["view"])
     if adjoining is not _UNSET:
         set_adjoining_room(session, room_id, adjoining)  # type: ignore[arg-type]
     return room

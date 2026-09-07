@@ -33,3 +33,13 @@ class RoomAssigned(Event):
     reservation_room_id: int
     room_id: int
     previous_room_id: int | None
+
+
+@dataclass(kw_only=True)
+class RoomUpgraded(Event):
+    reservation_id: int
+    line_id: int
+    room_id: int
+    from_view_id: int | None
+    to_view_id: int | None
+    charge_amount_minor: int

@@ -108,6 +108,16 @@ class AvailabilityService(Protocol):
     ) -> None: ...
 
 
+@runtime_checkable
+class RatesService(Protocol):
+    def nightly_amount(
+        self, session: Session, *, rate_plan_id: int, room_type_id: int, day: date
+    ) -> int | None:
+        """Resolved nightly price in minor units for a room type under a rate
+        plan on a given date, or ``None`` if unpriced (following derived-plan
+        chains as configured)."""
+
+
 # --------------------------------------------------------------------------- #
 # Billing / folio
 # --------------------------------------------------------------------------- #

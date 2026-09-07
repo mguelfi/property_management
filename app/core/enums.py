@@ -13,6 +13,7 @@ class ChargeCategory(enum.StrEnum):
     deposit = "deposit"
     fee = "fee"
     cancellation = "cancellation"
+    upgrade = "upgrade"
     misc = "misc"
 
 

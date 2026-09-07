@@ -25,6 +25,7 @@ export type ChargeCategory =
   | "deposit"
   | "fee"
   | "cancellation"
+  | "upgrade"
   | "misc";
 
 export type PaymentMethod =
@@ -70,16 +71,45 @@ export interface RoomType {
   overbooking_allowance: number;
 }
 
+export interface RoomView {
+  id: number;
+  code: string;
+  name: string;
+  sort_order: number;
+  surcharge_minor: number;
+  is_active: boolean;
+}
+
 export interface Room {
   id: number;
   number: string;
   name: string;
   floor: string;
   room_type_id: number;
+  view_id: number | null;
   is_active: boolean;
   notes: string;
   adjoining_room_id: number | null;
   adjoining_room_number: string | null;
+  view_name: string | null;
+  view_surcharge_minor: number | null;
+}
+
+export interface UpgradeQuote {
+  nights: number;
+  room_type_delta_minor: number;
+  view_surcharge_minor: number;
+  total_minor: number;
+  from_view_id: number | null;
+  to_view_id: number | null;
+}
+
+export interface UpgradeChargeIn {
+  line_id: number;
+  amount_minor: number;
+  description?: string;
+  from_view_id?: number | null;
+  to_view_id?: number | null;
 }
 
 export interface RatePlanOffer {

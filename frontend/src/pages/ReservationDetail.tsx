@@ -7,7 +7,9 @@ import {
   useReservation,
   useReservationAction,
   useRoomTypeMap,
+  useRoomViews,
   useRooms,
+  useUpgradeQuote,
 } from "../api/hooks";
 import type { Room } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
@@ -15,10 +17,27 @@ import { AmendRoomsModal } from "../components/AmendRoomsModal";
 import { FolioPanel } from "../components/FolioPanel";
 import { GuestName } from "../components/GuestName";
 import { useToast } from "../components/Toaster";
-import { EmptyState, ErrorText, Select, Spinner, StatusBadge } from "../components/ui";
+import {
+  EmptyState,
+  ErrorText,
+  Field,
+  Select,
+  Spinner,
+  StatusBadge,
+  TextInput,
+} from "../components/ui";
 import { fmtDate } from "../lib/dates";
-import { formatMoney } from "../lib/money";
+import { formatMoney, toMajorString, toMinor } from "../lib/money";
 import type { RoomLine } from "../api/types";
+
+export interface PendingUpgrade {
+  roomId: number;
+  amountMinor: number;
+  isFree: boolean;
+  fromViewId: number | null;
+  toViewId: number | null;
+  description: string;
+}
 
 export function ReservationDetail() {
   const { id } = useParams();
@@ -127,12 +146,19 @@ export function ReservationDetail() {
                   currency={res.currency}
                   roomNumbers={roomNumbers}
                   canAssign={canOperate && ["confirmed", "in_house"].includes(res.status)}
-                  onAssign={(roomId) =>
+                  onAssign={(roomId, opts) =>
                     fd.assign.mutate(
-                      { reservationId: rid, lineId: line.id, roomId },
                       {
-                        onSuccess: () =>
-                          toast.ok(line.assigned_room_id ? "Room changed" : "Room assigned"),
+                        reservationId: rid,
+                        lineId: line.id,
+                        roomId,
+                        allowTypeMismatch: opts?.allowTypeMismatch,
+                      },
+                      {
+                        onSuccess: () => {
+                          toast.ok(line.assigned_room_id ? "Room changed" : "Room assigned");
+                          opts?.onAssigned?.();
+                        },
                         onError: toast.error,
                       },
                     )
@@ -256,18 +282,66 @@ export function RoomLineRow({
   roomNumbers,
   canAssign,
   onAssign,
+  allowUpgrade = false,
+  reservationId,
+  pendingUpgrade,
+  onPendingUpgrade,
 }: {
   line: RoomLine;
   typeName: string;
   currency: string;
   roomNumbers: Map<number, string>;
   canAssign: boolean;
-  onAssign: (roomId: number) => void;
+  onAssign: (
+    roomId: number,
+    opts?: { allowTypeMismatch?: boolean; onAssigned?: () => void },
+  ) => void;
+  /** Widens the room picker to any active room (not just the booked type) and
+   * offers a suggested-price confirm step before assigning — used at check-in
+   * time to offer a free or paid upgrade. Default false leaves this row
+   * exactly as it behaves outside the front-desk check-in flow. */
+  allowUpgrade?: boolean;
+  reservationId?: number;
+  pendingUpgrade?: PendingUpgrade | null;
+  onPendingUpgrade?: (upgrade: PendingUpgrade | null) => void;
 }) {
-  const candidates = useRooms(canAssign ? line.room_type_id : undefined);
+  const candidates = useRooms(
+    allowUpgrade ? undefined : canAssign ? line.room_type_id : undefined,
+  );
+  const views = useRoomViews();
   const assignedId = line.assigned_room_id;
   const assignedLabel =
     assignedId !== null ? `Room ${roomNumbers.get(assignedId) ?? `#${assignedId}`}` : null;
+
+  const [previewRoomId, setPreviewRoomId] = useState<number | null>(null);
+  const [amountText, setAmountText] = useState("");
+  const quote = useUpgradeQuote(reservationId ?? 0, line.id, previewRoomId);
+  const viewNames = new Map((views.data ?? []).map((v) => [v.id, v.name]));
+
+  function confirmUpgrade() {
+    if (previewRoomId === null || !quote.data) return;
+    const roomId = previewRoomId;
+    const amountMinor =
+      amountText.trim() === "" ? quote.data.total_minor : Math.max(toMinor(amountText, currency), 0);
+    const { from_view_id: fromViewId, to_view_id: toViewId } = quote.data;
+    // Only record the pending upgrade charge once the room is actually
+    // assigned — a failed assign (e.g. room no longer free) must not leave a
+    // charge queued for a room the guest was never placed in.
+    onAssign(roomId, {
+      allowTypeMismatch: true,
+      onAssigned: () =>
+        onPendingUpgrade?.({
+          roomId,
+          amountMinor,
+          isFree: amountMinor <= 0,
+          fromViewId,
+          toViewId,
+          description: "",
+        }),
+    });
+    setPreviewRoomId(null);
+    setAmountText("");
+  }
 
   return (
     <tr>
@@ -281,17 +355,79 @@ export function RoomLineRow({
       <td>
         {canAssign ? (
           <Select
-            options={roomOptions(line, candidates.data, roomNumbers)}
+            options={roomOptions(line, candidates.data, roomNumbers, allowUpgrade ? viewNames : undefined)}
             value={assignedId !== null ? String(assignedId) : ""}
             onChange={(e) => {
               const next = e.target.value;
-              if (next && Number(next) !== assignedId) onAssign(Number(next));
+              if (!next) return;
+              const roomId = Number(next);
+              if (roomId === assignedId) return;
+              if (allowUpgrade) {
+                setPreviewRoomId(roomId);
+                setAmountText("");
+              } else {
+                onAssign(roomId);
+              }
             }}
           />
         ) : assignedLabel ? (
           assignedLabel
         ) : (
           <span className="muted">unassigned</span>
+        )}
+        {allowUpgrade && previewRoomId !== null && (
+          <div className="card" style={{ marginTop: 8, padding: 10 }}>
+            {quote.isLoading && <Spinner />}
+            {quote.data && (
+              <>
+                <div className="muted" style={{ fontSize: 12.5, marginBottom: 6 }}>
+                  Suggested upgrade price: {formatMoney(quote.data.total_minor, currency)} for{" "}
+                  {quote.data.nights} night{quote.data.nights === 1 ? "" : "s"}
+                </div>
+                <div className="form-row" style={{ alignItems: "flex-end" }}>
+                  <Field label="Charge (0 = free)">
+                    <TextInput
+                      value={amountText}
+                      onChange={(e) => setAmountText(e.target.value)}
+                      placeholder={toMajorString(quote.data.total_minor, currency)}
+                    />
+                  </Field>
+                  <div className="btn-row">
+                    <button
+                      className="btn btn-sm"
+                      type="button"
+                      onClick={() => setPreviewRoomId(null)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="btn btn-sm btn-primary"
+                      type="button"
+                      onClick={confirmUpgrade}
+                    >
+                      Confirm
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        {allowUpgrade && pendingUpgrade && previewRoomId === null && (
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+            {pendingUpgrade.isFree
+              ? "Free upgrade"
+              : `+${formatMoney(pendingUpgrade.amountMinor, currency)} upgrade`}{" "}
+            pending check-in
+            <button
+              className="btn btn-ghost btn-sm"
+              type="button"
+              onClick={() => onPendingUpgrade?.(null)}
+              style={{ marginLeft: 6 }}
+            >
+              Remove
+            </button>
+          </div>
         )}
       </td>
       <td className="num-cell">{formatMoney(line.rate_total_minor, currency)}</td>
@@ -303,6 +439,7 @@ function roomOptions(
   line: RoomLine,
   candidates: Room[] | undefined,
   roomNumbers: Map<number, string>,
+  viewNames?: Map<number, string>,
 ): [string, string][] {
   const opts: [string, string][] = [
     [line.assigned_room_id !== null ? String(line.assigned_room_id) : "", "— assign —"],
@@ -319,7 +456,8 @@ function roomOptions(
   for (const r of candidates ?? []) {
     if (seen.has(r.id)) continue;
     seen.add(r.id);
-    opts.push([String(r.id), `Room ${r.number}`]);
+    const view = r.view_id != null ? viewNames?.get(r.view_id) : undefined;
+    opts.push([String(r.id), view ? `Room ${r.number} — ${view}` : `Room ${r.number}`]);
   }
   return opts;
 }

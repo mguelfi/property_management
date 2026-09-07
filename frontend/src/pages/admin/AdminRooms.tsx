@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   useAdminRooms,
   useAdminRoomTypes,
+  useAdminRoomViews,
   useFloors,
+  useProperty,
   useRoomAdminActions,
   useRoomTypeAdminActions,
+  useRoomViewAdminActions,
 } from "../../api/hooks";
-import type { Room, RoomType } from "../../api/types";
+import type { Room, RoomType, RoomView } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
 import { useToast } from "../../components/Toaster";
 import {
@@ -21,6 +24,7 @@ import {
   Textarea,
   TextInput,
 } from "../../components/ui";
+import { formatMoney, toMajorString, toMinor } from "../../lib/money";
 
 const PAGE = 25;
 
@@ -32,11 +36,12 @@ export function AdminRooms() {
         tabs={[
           ["rooms", "Rooms"],
           ["types", "Room types"],
+          ["views", "Views"],
         ]}
         active={tab}
         onChange={setTab}
       />
-      {tab === "rooms" ? <RoomsTab /> : <RoomTypesTab />}
+      {tab === "rooms" ? <RoomsTab /> : tab === "types" ? <RoomTypesTab /> : <ViewsTab />}
     </>
   );
 }
@@ -291,6 +296,224 @@ function RoomTypeModal({
 }
 
 // --------------------------------------------------------------------------- //
+// Room views
+// --------------------------------------------------------------------------- //
+
+function ViewsTab() {
+  const { can } = useAuth();
+  const editable = can("inventory.manage");
+  const toast = useToast();
+  const property = useProperty();
+  const currency = property.data?.currency ?? "AUD";
+  const views = useAdminRoomViews();
+  const actions = useRoomViewAdminActions();
+  const [editing, setEditing] = useState<RoomView | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  return (
+    <>
+      <div className="page-head">
+        <h2>Views</h2>
+        <div className="spacer" />
+        {editable && (
+          <button className="btn btn-primary" onClick={() => setCreating(true)}>
+            New view
+          </button>
+        )}
+      </div>
+      <p className="muted" style={{ marginTop: -8 }}>
+        Rooms can be tagged with a view (e.g. Garden, Ocean). A room's nightly surcharge is
+        suggested whenever front desk offers a guest an upgrade into it at check-in.
+      </p>
+
+      <div className="card">
+        {views.isLoading && <Spinner />}
+        <ErrorText error={views.error} />
+        {views.data && (
+          <div className="table-wrap">
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Name</th>
+                  <th className="num-cell">Sort</th>
+                  <th className="num-cell">Surcharge / night</th>
+                  <th>Status</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {views.data.map((rv) => (
+                  <tr key={rv.id}>
+                    <td>{rv.code}</td>
+                    <td>{rv.name}</td>
+                    <td className="num-cell">{rv.sort_order}</td>
+                    <td className="num-cell">{formatMoney(rv.surcharge_minor, currency)}</td>
+                    <td>
+                      {rv.is_active ? (
+                        "Active"
+                      ) : (
+                        <span className="badge badge-cancelled">Inactive</span>
+                      )}
+                    </td>
+                    <td className="num-cell">
+                      {editable && (
+                        <div className="btn-row" style={{ justifyContent: "flex-end" }}>
+                          <button className="btn btn-sm" onClick={() => setEditing(rv)}>
+                            Edit
+                          </button>
+                          {rv.is_active && (
+                            <button
+                              className="btn btn-sm btn-danger"
+                              onClick={() => {
+                                if (!window.confirm(`Deactivate ${rv.code}?`)) return;
+                                actions.deactivate.mutate(rv.id, {
+                                  onSuccess: () => toast.ok("Deactivated"),
+                                  onError: toast.error,
+                                });
+                              }}
+                            >
+                              Deactivate
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {(creating || editing) && (
+        <RoomViewModal
+          roomView={editing}
+          currency={currency}
+          busy={actions.create.isPending || actions.update.isPending}
+          onClose={() => {
+            setCreating(false);
+            setEditing(null);
+          }}
+          onSubmit={(body) => {
+            const opts = {
+              onSuccess: () => {
+                toast.ok("Saved");
+                setCreating(false);
+                setEditing(null);
+              },
+              onError: toast.error,
+            };
+            if (editing) actions.update.mutate({ id: editing.id, body }, opts);
+            else actions.create.mutate(body, opts);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function RoomViewModal({
+  roomView,
+  currency,
+  busy,
+  onClose,
+  onSubmit,
+}: {
+  roomView: RoomView | null;
+  currency: string;
+  busy: boolean;
+  onClose: () => void;
+  onSubmit: (body: Record<string, unknown>) => void;
+}) {
+  const [f, setF] = useState({
+    code: roomView?.code ?? "",
+    name: roomView?.name ?? "",
+    sort_order: roomView?.sort_order ?? 100,
+    is_active: roomView?.is_active ?? true,
+  });
+  const [surcharge, setSurcharge] = useState(
+    roomView ? toMajorString(roomView.surcharge_minor, currency) : "0",
+  );
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    const body: Record<string, unknown> = {
+      ...f,
+      surcharge_minor: toMinor(surcharge || "0", currency),
+    };
+    if (roomView) delete body.code; // code is immutable after creation
+    onSubmit(body);
+  }
+
+  return (
+    <Modal title={roomView ? `Edit ${roomView.code}` : "New view"} onClose={onClose}>
+      <form onSubmit={submit}>
+        <div className="form-row">
+          {!roomView && (
+            <Field
+              label="Code"
+              hint="A–Z, 0–9, _"
+              help="Short unique identifier for this view (e.g. OCEAN, GARDEN). Cannot be changed after creation."
+            >
+              <TextInput
+                required
+                pattern="[A-Z0-9_]{2,20}"
+                value={f.code}
+                onChange={(e) => setF({ ...f, code: e.target.value.toUpperCase() })}
+              />
+            </Field>
+          )}
+          <Field label="Name" help="Guest-facing label for this view.">
+            <TextInput
+              required
+              value={f.name}
+              onChange={(e) => setF({ ...f, name: e.target.value })}
+            />
+          </Field>
+        </div>
+        <div className="form-row">
+          <Field
+            label="Sort order"
+            help="Ranks views by desirability — higher is better. Front desk only suggests an upgrade when the candidate room's view outranks the guest's current one."
+          >
+            <TextInput
+              type="number"
+              value={f.sort_order}
+              onChange={(e) => setF({ ...f, sort_order: Number(e.target.value) })}
+            />
+          </Field>
+          <Field
+            label={`Surcharge / night (${currency})`}
+            help="Suggested extra nightly charge when a guest is upgraded into a room with this view. Staff can override the amount at check-in."
+          >
+            <TextInput
+              value={surcharge}
+              onChange={(e) => setSurcharge(e.target.value)}
+              inputMode="decimal"
+            />
+          </Field>
+        </div>
+        {roomView && (
+          <label className="perm-item">
+            <input
+              type="checkbox"
+              checked={f.is_active}
+              onChange={(e) => setF({ ...f, is_active: e.target.checked })}
+            />
+            Active
+          </label>
+        )}
+        <button className="btn btn-primary" disabled={busy}>
+          {busy ? "Saving…" : "Save"}
+        </button>
+      </form>
+    </Modal>
+  );
+}
+
+// --------------------------------------------------------------------------- //
 // Rooms
 // --------------------------------------------------------------------------- //
 
@@ -318,6 +541,7 @@ function RoomsTab() {
     limit: PAGE,
   });
   const types = useAdminRoomTypes();
+  const views = useAdminRoomViews();
   const floors = useFloors();
   const actions = useRoomAdminActions();
   // Full room list (active only) for the adjoining-room picker, independent of paging/filters.
@@ -408,6 +632,7 @@ function RoomsTab() {
                   <th>Number</th>
                   <th>Name</th>
                   <th>Type</th>
+                  <th>View</th>
                   <th>Adjoining</th>
                   <th>Status</th>
                   <th />
@@ -442,6 +667,7 @@ function RoomsTab() {
         <RoomModal
           room={editing}
           types={types.data ?? []}
+          views={views.data ?? []}
           adjoiningOptions={allRooms.data?.items ?? items}
           busy={actions.create.isPending || actions.update.isPending}
           onClose={() => {
@@ -494,13 +720,14 @@ function FloorGroup({
   return (
     <>
       <tr className="group-row">
-        <td colSpan={6}>Floor {floor || "—"}</td>
+        <td colSpan={7}>Floor {floor || "—"}</td>
       </tr>
       {rooms.map((r) => (
         <tr key={r.id}>
           <td>{r.number}</td>
           <td>{r.name || "—"}</td>
           <td>{typeName.get(r.room_type_id) ?? r.room_type_id}</td>
+          <td>{r.view_name ?? "—"}</td>
           <td>{r.adjoining_room_number ?? "—"}</td>
           <td>
             {r.is_active ? "Active" : <span className="badge badge-cancelled">Inactive</span>}
@@ -528,6 +755,7 @@ function FloorGroup({
 function RoomModal({
   room,
   types,
+  views,
   adjoiningOptions,
   busy,
   onClose,
@@ -535,6 +763,7 @@ function RoomModal({
 }: {
   room: Room | null;
   types: RoomType[];
+  views: RoomView[];
   adjoiningOptions: Room[];
   busy: boolean;
   onClose: () => void;
@@ -548,12 +777,14 @@ function RoomModal({
     notes: room?.notes ?? "",
     is_active: room?.is_active ?? true,
   });
+  const [viewId, setViewId] = useState<string>(room?.view_id ? String(room.view_id) : "");
   const [adjoining, setAdjoining] = useState<string>(
     room?.adjoining_room_id ? String(room.adjoining_room_id) : "",
   );
 
   useEffect(() => {
     setAdjoining(room?.adjoining_room_id ? String(room.adjoining_room_id) : "");
+    setViewId(room?.view_id ? String(room.view_id) : "");
   }, [room]);
 
   function submit(e: FormEvent) {
@@ -563,6 +794,7 @@ function RoomModal({
       name: f.name,
       floor: f.floor,
       room_type_id: f.room_type_id,
+      view_id: viewId ? Number(viewId) : null,
       notes: f.notes,
     };
     if (room) {
@@ -604,6 +836,19 @@ function RoomModal({
             value={String(f.room_type_id)}
             onChange={(e) => setF({ ...f, room_type_id: Number(e.target.value) })}
             options={types.map((t) => [String(t.id), `${t.code} — ${t.name}`])}
+          />
+        </Field>
+        <Field
+          label="View"
+          help="Rooms with a better view are suggested at a higher price when front desk offers a check-in upgrade."
+        >
+          <Select
+            value={viewId}
+            onChange={(e) => setViewId(e.target.value)}
+            options={[
+              ["", "— none —"],
+              ...views.map((v) => [String(v.id), v.name] as [string, string]),
+            ]}
           />
         </Field>
         {room && (

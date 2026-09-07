@@ -31,6 +31,7 @@ const CATEGORIES = [
   "room_service",
   "food_beverage",
   "fee",
+  "upgrade",
   "misc",
 ];
 

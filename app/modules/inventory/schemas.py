@@ -86,11 +86,37 @@ class RoomTypeOut(BaseModel):
     overbooking_allowance: int
 
 
+class RoomViewIn(BaseModel):
+    code: str = Field(pattern=r"^[A-Z0-9_]{2,20}$")
+    name: str
+    sort_order: int = 100
+    surcharge_minor: int = Field(ge=0, default=0)
+    is_active: bool = True
+
+
+class RoomViewUpdate(BaseModel):
+    name: str | None = None
+    sort_order: int | None = None
+    surcharge_minor: int | None = Field(default=None, ge=0)
+    is_active: bool | None = None
+
+
+class RoomViewOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    code: str
+    name: str
+    sort_order: int
+    surcharge_minor: int
+    is_active: bool
+
+
 class RoomIn(BaseModel):
     number: str = Field(max_length=20)
     name: str = ""
     floor: str = ""
     room_type_id: int
+    view_id: int | None = None
     is_active: bool = True
     notes: str = ""
 
@@ -100,6 +126,7 @@ class RoomUpdate(BaseModel):
     name: str | None = None
     floor: str | None = None
     room_type_id: int | None = None
+    view_id: int | None = None
     is_active: bool | None = None
     notes: str | None = None
     adjoining_room_id: int | None = None
@@ -112,10 +139,13 @@ class RoomOut(BaseModel):
     name: str
     floor: str
     room_type_id: int
+    view_id: int | None = None
     is_active: bool
     notes: str
     adjoining_room_id: int | None = None
     adjoining_room_number: str | None = None
+    view_name: str | None = None
+    view_surcharge_minor: int | None = None
 
 
 class RoomBlockIn(BaseModel):
