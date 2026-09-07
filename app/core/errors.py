@@ -60,6 +60,14 @@ class OutstandingBalance(Conflict):
     code = "outstanding_balance"
 
 
+class AlreadyUndone(Conflict):
+    code = "already_undone"
+
+
+class NotUndoable(Conflict):
+    code = "not_undoable"
+
+
 def install_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(PMSError)
     async def _handle(_: Request, exc: PMSError) -> JSONResponse:

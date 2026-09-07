@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from app.core.config import Settings, get_settings
 from app.core.events import bus
 from app.core.module import Module
+from app.core.undo import clear_reversers
 
 logger = logging.getLogger("pms.registry")
 
@@ -81,6 +82,7 @@ def build_app(settings: Settings | None = None) -> FastAPI:
         return {"status": "ok", "modules": [m.name for m in modules]}
 
     bus.clear()
+    clear_reversers()
     for mod in modules:
         target = mod.models_module or f"app.modules.{mod.name}.models"
         with contextlib.suppress(ModuleNotFoundError):

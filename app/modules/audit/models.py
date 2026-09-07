@@ -19,3 +19,5 @@ class AuditEvent(Base):
     entity_id: Mapped[int | None] = mapped_column(Integer, index=True)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     payload: Mapped[dict] = mapped_column(JSONB, default=dict)
+    undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    undone_by_actor_id: Mapped[int | None] = mapped_column(Integer)

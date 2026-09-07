@@ -28,6 +28,13 @@ class Event:
 
     occurred_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     actor_id: int | None = None
+    undo_context: dict[str, object] = field(default_factory=dict)
+    """Scratch space for undo support. A handler that isn't the event's own
+    producer (e.g. a side-effect subscriber) can stash extra "before" state
+    here before the audit module serializes the event, because ``publish``
+    below calls subclass-subscribed handlers before base-``Event``-subscribed
+    ones (the audit recorder is subscribed to the base ``Event`` class), so
+    this dict is fully populated by the time it gets persisted."""
 
 
 Handler = Callable[[Event, Session], None]

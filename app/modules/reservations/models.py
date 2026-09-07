@@ -78,7 +78,7 @@ class Reservation(Base, TimestampMixin):
     )
 
 
-class ReservationRoom(Base):
+class ReservationRoom(Base, TimestampMixin):
     __tablename__ = "res_reservation_rooms"
 
     id: Mapped[int] = mapped_column(primary_key=True)

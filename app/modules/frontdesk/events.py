@@ -26,12 +26,14 @@ class GuestCheckedOut(Event):
     reservation_id: int
     reference: str
     room_ids: tuple[int, ...]
+    folio_id: int
+    folio_closed_by_this_action: bool
 
 
 @dataclass(kw_only=True)
 class RoomAssigned(Event):
     reservation_room_id: int
-    room_id: int
+    room_id: int | None
     previous_room_id: int | None
 
 
@@ -43,3 +45,4 @@ class RoomUpgraded(Event):
     from_view_id: int | None
     to_view_id: int | None
     charge_amount_minor: int
+    folio_line_id: int | None

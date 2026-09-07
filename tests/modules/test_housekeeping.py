@@ -42,7 +42,12 @@ def test_set_status_persists_note_and_actor(db, rooms):
 
 def test_guest_checked_out_marks_rooms_dirty(db, rooms):
     event = GuestCheckedOut(
-        reservation_id=1, reference="R000001", room_ids=(rooms["a"].id,), actor_id=7
+        reservation_id=1,
+        reference="R000001",
+        room_ids=(rooms["a"].id,),
+        folio_id=1,
+        folio_closed_by_this_action=False,
+        actor_id=7,
     )
     service.on_guest_checked_out(event, db)
     board = {row.room_id: row.status for row in service.list_board(db)}

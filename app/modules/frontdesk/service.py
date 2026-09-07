@@ -68,6 +68,12 @@ def _room_conflicts(
     return any(overlaps(arrival, departure, b.start_date, b.end_date) for b in blocks)
 
 
+@dataclass(frozen=True, kw_only=True)
+class AssignResult:
+    line: ReservationRoom
+    audit_event_id: int | None
+
+
 def assign_room(
     session: Session,
     *,
@@ -77,7 +83,7 @@ def assign_room(
     actor_id: int | None,
     allow_type_mismatch: bool = False,
     note: str = "",
-) -> ReservationRoom:
+) -> AssignResult:
     reservation = res_service.get_reservation(session, reservation_id)
     if reservation.status not in (
         ReservationStatus.confirmed,
@@ -109,16 +115,47 @@ def assign_room(
         )
     )
     session.flush()
-    bus.publish(
-        RoomAssigned(
-            reservation_room_id=line.id,
-            room_id=room_id,
-            previous_room_id=previous,
-            actor_id=actor_id,
-        ),
-        session,
+    event = RoomAssigned(
+        reservation_room_id=line.id,
+        room_id=room_id,
+        previous_room_id=previous,
+        actor_id=actor_id,
     )
-    return line
+    bus.publish(event, session)
+    return AssignResult(line=line, audit_event_id=event.undo_context.get("audit_event_id"))
+
+
+def release_room(
+    session: Session, *, reservation_id: int, line_id: int, actor_id: int | None
+) -> AssignResult:
+    """Clear a line's room assignment (undo of a first-time assignment, which
+    has no previous room to fall back to)."""
+    reservation = res_service.get_reservation(session, reservation_id)
+    if reservation.status is ReservationStatus.in_house:
+        raise Conflict("Cannot unassign a room while the guest is checked in")
+    line = get_line(session, reservation, line_id)
+    previous = line.assigned_room_id
+    line.assigned_room_id = None
+    session.add(
+        RoomAssignmentLog(
+            reservation_room_id=line.id,
+            room_id=None,
+            previous_room_id=previous,
+            action=AssignmentAction.released.value,
+            at=_now(),
+            by=actor_id,
+            note="undo of assignment",
+        )
+    )
+    session.flush()
+    event = RoomAssigned(
+        reservation_room_id=line.id,
+        room_id=None,
+        previous_room_id=previous,
+        actor_id=actor_id,
+    )
+    bus.publish(event, session)
+    return AssignResult(line=line, audit_event_id=event.undo_context.get("audit_event_id"))
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -188,7 +225,7 @@ def auto_assign(
         )
         for room in candidates:
             if not _room_conflicts(session, room.id, line.arrival, line.departure, line.id):
-                assign_room(
+                result = assign_room(
                     session,
                     reservation_id=reservation_id,
                     line_id=line.id,
@@ -196,7 +233,7 @@ def auto_assign(
                     actor_id=actor_id,
                     note="auto-assigned",
                 )
-                assigned.append(line)
+                assigned.append(result.line)
                 break
         else:
             raise Conflict(
@@ -205,13 +242,19 @@ def auto_assign(
     return assigned
 
 
+@dataclass(frozen=True, kw_only=True)
+class CheckInResult:
+    reservation: Reservation
+    audit_event_id: int | None
+
+
 def check_in(
     session: Session,
     *,
     reservation_id: int,
     actor_id: int | None,
     upgrades: Sequence[UpgradeChargeIn] = (),
-) -> Reservation:
+) -> CheckInResult:
     reservation = res_service.get_reservation(session, reservation_id)
     unassigned = [ln.id for ln in reservation.rooms if ln.assigned_room_id is None]
     if unassigned:
@@ -223,8 +266,9 @@ def check_in(
         line = get_line(session, reservation, upgrade.line_id)
         room = session.get(Room, line.assigned_room_id) if line.assigned_room_id else None
         description = upgrade.description or f"Room upgrade — {room.number if room else line.id}"
+        folio_line_id: int | None = None
         if upgrade.amount_minor > 0:
-            _folio().post_charge(
+            folio_line_id = _folio().post_charge(
                 session,
                 folio_id=folio_id,
                 category=ChargeCategory.upgrade,
@@ -242,22 +286,29 @@ def check_in(
                 from_view_id=upgrade.from_view_id,
                 to_view_id=upgrade.to_view_id,
                 charge_amount_minor=upgrade.amount_minor,
+                folio_line_id=folio_line_id,
                 actor_id=actor_id,
             ),
             session,
         )
 
     room_ids = tuple(ln.assigned_room_id for ln in reservation.rooms if ln.assigned_room_id)
-    bus.publish(
-        GuestCheckedIn(
-            reservation_id=reservation.id,
-            reference=reservation.reference,
-            room_ids=room_ids,
-            actor_id=actor_id,
-        ),
-        session,
+    event = GuestCheckedIn(
+        reservation_id=reservation.id,
+        reference=reservation.reference,
+        room_ids=room_ids,
+        actor_id=actor_id,
     )
-    return reservation
+    bus.publish(event, session)
+    return CheckInResult(
+        reservation=reservation, audit_event_id=event.undo_context.get("audit_event_id")
+    )
+
+
+@dataclass(frozen=True, kw_only=True)
+class CheckOutResult:
+    reservation: Reservation
+    audit_event_id: int | None
 
 
 def check_out(
@@ -266,7 +317,7 @@ def check_out(
     reservation_id: int,
     actor_id: int | None,
     allow_balance: bool = False,
-) -> Reservation:
+) -> CheckOutResult:
     reservation = res_service.get_reservation(session, reservation_id)
     folio_id = _folio().get_or_open_folio(session, reservation_id=reservation_id)
     balance = _folio().balance_minor(session, folio_id=folio_id)
@@ -276,18 +327,22 @@ def check_out(
         )
     res_service.mark_checked_out(session, reservation)
     room_ids = tuple(ln.assigned_room_id for ln in reservation.rooms if ln.assigned_room_id)
+    folio_closed = False
     if balance == 0:
         _folio().close_folio(session, folio_id=folio_id)
-    bus.publish(
-        GuestCheckedOut(
-            reservation_id=reservation.id,
-            reference=reservation.reference,
-            room_ids=room_ids,
-            actor_id=actor_id,
-        ),
-        session,
+        folio_closed = True
+    event = GuestCheckedOut(
+        reservation_id=reservation.id,
+        reference=reservation.reference,
+        room_ids=room_ids,
+        folio_id=folio_id,
+        folio_closed_by_this_action=folio_closed,
+        actor_id=actor_id,
     )
-    return reservation
+    bus.publish(event, session)
+    return CheckOutResult(
+        reservation=reservation, audit_event_id=event.undo_context.get("audit_event_id")
+    )
 
 
 def _list(session: Session, where: ColumnElement[bool]) -> list[Reservation]:

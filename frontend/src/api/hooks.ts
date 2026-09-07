@@ -7,6 +7,7 @@ import type {
   AuditEvent,
   Company,
   Folio,
+  FrontDeskActionResult,
   Guest,
   HousekeepingStatus,
   HousekeepingTask,
@@ -251,16 +252,18 @@ export const useFrontDeskBoard = (kind: "arrivals" | "departures" | "in-house", 
     refetchInterval: 60_000,
   });
 
+function invalidateFrontDesk(qc: ReturnType<typeof useQueryClient>, reservationId?: number) {
+  qc.invalidateQueries({ queryKey: ["frontdesk"] });
+  qc.invalidateQueries({ queryKey: ["reservations"] });
+  if (reservationId) {
+    qc.invalidateQueries({ queryKey: ["reservation", reservationId] });
+    qc.invalidateQueries({ queryKey: ["folio", "reservation", reservationId] });
+  }
+}
+
 export function useFrontDeskActions() {
   const qc = useQueryClient();
-  const invalidate = (reservationId?: number) => {
-    qc.invalidateQueries({ queryKey: ["frontdesk"] });
-    qc.invalidateQueries({ queryKey: ["reservations"] });
-    if (reservationId) {
-      qc.invalidateQueries({ queryKey: ["reservation", reservationId] });
-      qc.invalidateQueries({ queryKey: ["folio", "reservation", reservationId] });
-    }
-  };
+  const invalidate = (reservationId?: number) => invalidateFrontDesk(qc, reservationId);
   return {
     assign: useMutation({
       mutationFn: (v: {
@@ -269,7 +272,7 @@ export function useFrontDeskActions() {
         roomId: number;
         allowTypeMismatch?: boolean;
       }) =>
-        api<Reservation>(
+        api<FrontDeskActionResult>(
           `/api/frontdesk/reservations/${v.reservationId}/rooms/${v.lineId}/assign`,
           {
             method: "POST",
@@ -289,7 +292,7 @@ export function useFrontDeskActions() {
       mutationFn: (v: number | { reservationId: number; upgrades?: UpgradeChargeIn[] }) => {
         const reservationId = typeof v === "number" ? v : v.reservationId;
         const upgrades = typeof v === "number" ? undefined : v.upgrades;
-        return api<Reservation>(`/api/frontdesk/reservations/${reservationId}/checkin`, {
+        return api<FrontDeskActionResult>(`/api/frontdesk/reservations/${reservationId}/checkin`, {
           method: "POST",
           body: { upgrades: upgrades ?? [] },
         });
@@ -298,7 +301,7 @@ export function useFrontDeskActions() {
     }),
     checkOut: useMutation({
       mutationFn: (v: { reservationId: number; allowBalance: boolean }) =>
-        api<Reservation>(`/api/frontdesk/reservations/${v.reservationId}/checkout`, {
+        api<FrontDeskActionResult>(`/api/frontdesk/reservations/${v.reservationId}/checkout`, {
           method: "POST",
           body: { allow_balance: v.allowBalance },
         }),
@@ -313,6 +316,15 @@ export function useFrontDeskActions() {
       onSuccess: () => invalidate(),
     }),
   };
+}
+
+export function useUndoAction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { auditEventId: number; reservationId?: number }) =>
+      api(`/api/audit/events/${v.auditEventId}/undo`, { method: "POST" }),
+    onSuccess: (_d, v) => invalidateFrontDesk(qc, v.reservationId),
+  });
 }
 
 export const useUpgradeQuote = (

@@ -218,6 +218,11 @@ export interface Reservation {
   rooms: RoomLine[];
 }
 
+export interface FrontDeskActionResult {
+  reservation: Reservation;
+  audit_event_id: number | null;
+}
+
 export interface ReservationListItem {
   id: number;
   reference: string;

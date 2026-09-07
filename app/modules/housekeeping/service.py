@@ -88,6 +88,8 @@ def list_board(
 def on_guest_checked_out(event: Event, session: Session) -> None:
     event = cast(GuestCheckedOut, event)
     for room_id in event.room_ids:
+        prior = get_or_create_state(session, room_id)
+        event.undo_context.setdefault("housekeeping", {})[str(room_id)] = prior.status.value
         set_status(
             session,
             room_id=room_id,
@@ -95,6 +97,21 @@ def on_guest_checked_out(event: Event, session: Session) -> None:
             actor_id=event.actor_id,
             note="auto: guest checked out",
         )
+
+
+def revert_guest_checked_out_housekeeping(event: GuestCheckedOut, session: Session) -> None:
+    """Best-effort, per room, never raises: the housekeeping dirty-flag is a
+    secondary side effect of check-out and must never block or corrupt the
+    primary reservation/folio undo. A room is only reset if it's still
+    exactly ``dirty`` (what check-out set) — anything else (already cleaned,
+    inspected, taken out of service since) is left alone."""
+    housekeeping: dict[str, str] = event.undo_context.get("housekeeping", {})  # type: ignore[assignment]
+    for room_id_str, prior_status in housekeeping.items():
+        room_id = int(room_id_str)
+        state = get_or_create_state(session, room_id)
+        if state.status is RoomHousekeepingStatus.dirty:
+            state.status = RoomHousekeepingStatus(prior_status)
+            session.flush()
 
 
 # --------------------------------------------------------------------------- #

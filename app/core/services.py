@@ -158,3 +158,17 @@ class FolioService(Protocol):
         """Positive = guest owes the property."""
 
     def close_folio(self, session: Session, *, folio_id: int) -> None: ...
+
+    def void_line(
+        self,
+        session: Session,
+        *,
+        line_id: int,
+        reason: str,
+        actor_id: int | None = None,
+        require_active: bool = False,
+    ) -> None:
+        """Void a folio line. If ``require_active``, raise
+        :class:`app.core.errors.Conflict` when it's already void instead of
+        silently no-op'ing (used by undo, where "already void" means someone
+        else beat you to it)."""

@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, ForeignKey, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.db import Base, str_enum
+from app.core.db import Base, TimestampMixin, str_enum
 
 
 class AssignmentAction(enum.StrEnum):
@@ -15,7 +15,7 @@ class AssignmentAction(enum.StrEnum):
     released = "released"
 
 
-class RoomAssignmentLog(Base):
+class RoomAssignmentLog(Base, TimestampMixin):
     __tablename__ = "fd_room_assignment_log"
 
     id: Mapped[int] = mapped_column(primary_key=True)

@@ -66,6 +66,11 @@ class FrontDeskAction(BaseModel):
     message: str = ""
 
 
+class ActionResult(BaseModel):
+    reservation: ReservationOut
+    audit_event_id: int | None = None
+
+
 class NightAuditIn(BaseModel):
     as_of: date | None = None
 

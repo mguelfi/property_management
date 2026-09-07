@@ -207,13 +207,21 @@ class FolioServiceImpl:
         return line.id
 
     def void_line(
-        self, session: Session, *, line_id: int, reason: str, actor_id: int | None = None
+        self,
+        session: Session,
+        *,
+        line_id: int,
+        reason: str,
+        actor_id: int | None = None,
+        require_active: bool = False,
     ) -> None:
         line = session.get(FolioLine, line_id)
         if line is None:
             raise NotFound("Folio line not found")
         _require_open(get_folio(session, line.folio_id))
         if line.is_void:
+            if require_active:
+                raise Conflict("Folio line has already been voided")
             return
         line.is_void = True
         line.void_reason = reason

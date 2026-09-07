@@ -16,6 +16,7 @@ from app.modules.reservations.schemas import ReservationOut
 
 from . import service
 from .schemas import (
+    ActionResult,
     ArrivalRow,
     AssignIn,
     CheckInIn,
@@ -63,13 +64,13 @@ def _arrival_row(r: Reservation) -> ArrivalRow:
 
 @router.post(
     "/reservations/{reservation_id}/rooms/{line_id}/assign",
-    response_model=ReservationOut,
+    response_model=ActionResult,
     dependencies=[operate],
 )
 def assign(
     reservation_id: int, line_id: int, payload: AssignIn, db: DbDep, user: CurrentUserDep
-) -> ReservationOut:
-    service.assign_room(
+) -> ActionResult:
+    result = service.assign_room(
         db,
         reservation_id=reservation_id,
         line_id=line_id,
@@ -78,7 +79,10 @@ def assign(
         allow_type_mismatch=payload.allow_type_mismatch,
         note=payload.note,
     )
-    return ReservationOut.model_validate(res_service.get_reservation(db, reservation_id))
+    return ActionResult(
+        reservation=ReservationOut.model_validate(res_service.get_reservation(db, reservation_id)),
+        audit_event_id=result.audit_event_id,
+    )
 
 
 @router.post(
@@ -93,7 +97,7 @@ def auto_assign(reservation_id: int, db: DbDep, user: CurrentUserDep) -> Reserva
 
 @router.post(
     "/reservations/{reservation_id}/checkin",
-    response_model=ReservationOut,
+    response_model=ActionResult,
     dependencies=[operate],
 )
 def checkin(
@@ -101,11 +105,14 @@ def checkin(
     db: DbDep,
     user: CurrentUserDep,
     payload: Annotated[CheckInIn, Body(default_factory=CheckInIn)],
-) -> ReservationOut:
-    res = service.check_in(
+) -> ActionResult:
+    result = service.check_in(
         db, reservation_id=reservation_id, actor_id=user.id, upgrades=payload.upgrades
     )
-    return ReservationOut.model_validate(res)
+    return ActionResult(
+        reservation=ReservationOut.model_validate(result.reservation),
+        audit_event_id=result.audit_event_id,
+    )
 
 
 @router.get(
@@ -132,7 +139,7 @@ def upgrade_quote(
 
 @router.post(
     "/reservations/{reservation_id}/checkout",
-    response_model=ReservationOut,
+    response_model=ActionResult,
     dependencies=[operate],
 )
 def checkout(
@@ -140,16 +147,19 @@ def checkout(
     payload: CheckOutIn,
     db: DbDep,
     user: CurrentUserDep,
-) -> ReservationOut:
+) -> ActionResult:
     if payload.allow_balance:
         user.require("billing.checkout_with_balance")
-    res = service.check_out(
+    result = service.check_out(
         db,
         reservation_id=reservation_id,
         actor_id=user.id,
         allow_balance=payload.allow_balance,
     )
-    return ReservationOut.model_validate(res)
+    return ActionResult(
+        reservation=ReservationOut.model_validate(result.reservation),
+        audit_event_id=result.audit_event_id,
+    )
 
 
 @router.post("/walk-ins", response_model=FrontDeskAction, status_code=201, dependencies=[operate])
@@ -159,9 +169,9 @@ def walk_in(payload: WalkInCreate, db: DbDep, user: CurrentUserDep) -> FrontDesk
     data["status"] = "confirmed"
     reservation = res_service.create_reservation(db, payload=data, actor_id=user.id)
     service.auto_assign(db, reservation_id=reservation.id, actor_id=user.id)
-    reservation = service.check_in(db, reservation_id=reservation.id, actor_id=user.id)
+    result = service.check_in(db, reservation_id=reservation.id, actor_id=user.id)
     return FrontDeskAction(
-        reservation=ReservationOut.model_validate(reservation),
+        reservation=ReservationOut.model_validate(result.reservation),
         message="Walk-in created, assigned and checked in",
     )
 

@@ -1,5 +1,11 @@
 import { useMemo } from "react";
-import { useFrontDeskActions, useReservation, useRoomTypeMap, useRooms } from "../../api/hooks";
+import {
+  useFrontDeskActions,
+  useReservation,
+  useRoomTypeMap,
+  useRooms,
+  useUndoAction,
+} from "../../api/hooks";
 import { useAuth } from "../../auth/AuthContext";
 import { RoomLineRow, type PendingUpgrade } from "../../pages/ReservationDetail";
 import { useToast } from "../Toaster";
@@ -24,6 +30,7 @@ export function AssignRoomDrawer({
   const roomTypes = useRoomTypeMap();
   const allRooms = useRooms();
   const fd = useFrontDeskActions();
+  const undo = useUndoAction();
 
   const roomNumbers = useMemo(
     () => new Map((allRooms.data ?? []).map((r) => [r.id, r.number])),
@@ -92,8 +99,23 @@ export function AssignRoomDrawer({
                           allowTypeMismatch: opts?.allowTypeMismatch,
                         },
                         {
-                          onSuccess: () => {
-                            toast.ok(line.assigned_room_id ? "Room changed" : "Room assigned");
+                          onSuccess: (data) => {
+                            toast.ok(
+                              line.assigned_room_id ? "Room changed" : "Room assigned",
+                              data.audit_event_id
+                                ? {
+                                    label: "Undo",
+                                    onClick: () =>
+                                      undo.mutate(
+                                        {
+                                          auditEventId: data.audit_event_id!,
+                                          reservationId,
+                                        },
+                                        { onError: toast.error },
+                                      ),
+                                  }
+                                : undefined,
+                            );
                             opts?.onAssigned?.();
                           },
                           onError: toast.error,

@@ -9,6 +9,7 @@ import {
   useRoomTypeMap,
   useRoomViews,
   useRooms,
+  useUndoAction,
   useUpgradeQuote,
 } from "../api/hooks";
 import type { Room } from "../api/types";
@@ -50,6 +51,7 @@ export function ReservationDetail() {
   const companies = useCompanies();
   const statusActions = useReservationAction(rid);
   const fd = useFrontDeskActions();
+  const undo = useUndoAction();
   const amend = useAmendReservation(rid);
   const [amending, setAmending] = useState(false);
 
@@ -155,8 +157,20 @@ export function ReservationDetail() {
                         allowTypeMismatch: opts?.allowTypeMismatch,
                       },
                       {
-                        onSuccess: () => {
-                          toast.ok(line.assigned_room_id ? "Room changed" : "Room assigned");
+                        onSuccess: (data) => {
+                          toast.ok(
+                            line.assigned_room_id ? "Room changed" : "Room assigned",
+                            data.audit_event_id
+                              ? {
+                                  label: "Undo",
+                                  onClick: () =>
+                                    undo.mutate(
+                                      { auditEventId: data.audit_event_id!, reservationId: rid },
+                                      { onError: toast.error },
+                                    ),
+                                }
+                              : undefined,
+                          );
                           opts?.onAssigned?.();
                         },
                         onError: toast.error,

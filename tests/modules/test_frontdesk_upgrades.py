@@ -222,7 +222,7 @@ def test_multi_room_reservation_only_upgraded_line_gets_charged(client, auth_hea
         json={"upgrades": [{"line_id": line_a, "amount_minor": 3000}]},
     )
     assert checkin.status_code == 200, checkin.text
-    assert checkin.json()["status"] == "in_house"
+    assert checkin.json()["reservation"]["status"] == "in_house"
 
     folio = client.get(
         f"/api/billing/reservations/{res['id']}/folio", headers=auth_headers
@@ -262,7 +262,7 @@ def test_checkin_without_upgrades_body_still_works(client, auth_headers, world):
     )
     resp = client.post(f"/api/frontdesk/reservations/{res['id']}/checkin", headers=auth_headers)
     assert resp.status_code == 200, resp.text
-    assert resp.json()["status"] == "in_house"
+    assert resp.json()["reservation"]["status"] == "in_house"
 
 
 def test_upgrade_never_changes_booked_room_type_or_rate(client, auth_headers, db, world):
