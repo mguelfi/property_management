@@ -115,6 +115,7 @@ class AvailabilityServiceImpl:
         adults: int,
         children: int = 0,
         room_type_id: int | None = None,
+        multi_room: bool = False,
     ) -> list[RoomTypeOffer]:
         if departure <= arrival:
             raise ValidationProblem("departure must be after arrival")
@@ -124,7 +125,7 @@ class AvailabilityServiceImpl:
             stmt = stmt.where(RoomType.id == room_type_id)
         offers: list[RoomTypeOffer] = []
         for rt in session.scalars(stmt.order_by(RoomType.sort_order, RoomType.code)):
-            if rt.max_occupancy < guests or rt.max_adults < adults:
+            if not multi_room and (rt.max_occupancy < guests or rt.max_adults < adults):
                 continue
             units = max(self.units_available(session, rt, arrival, departure), 0)
             plans = self._rate_plan_offers(session, rt.id, arrival, departure)

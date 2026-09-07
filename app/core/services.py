@@ -73,7 +73,12 @@ class AvailabilityService(Protocol):
         adults: int,
         children: int = 0,
         room_type_id: int | None = None,
-    ) -> list[RoomTypeOffer]: ...
+        multi_room: bool = False,
+    ) -> list[RoomTypeOffer]:
+        """``multi_room`` skips the "does one room sleep this whole party"
+        filter, returning every sellable room type regardless of
+        ``max_occupancy`` — used when a party is being split across several
+        rooms rather than housed in a single one."""
 
     def quote(
         self,

@@ -26,6 +26,39 @@ def test_search_returns_units_and_price(db, setup):
     assert offer.cheapest.total_minor == 40000
 
 
+def test_search_excludes_room_types_too_small_for_the_party(db, setup):
+    rt, _ = setup  # max_occupancy=2 (factory default)
+    a = date.today() + timedelta(days=3)
+    offers = service_impl.search(db, arrival=a, departure=a + timedelta(days=2), adults=5)
+    assert not any(o.room_type_id == rt.id for o in offers)
+
+
+def test_multi_room_search_ignores_party_size_for_a_single_room(db, setup):
+    rt, _ = setup  # max_occupancy=2 (factory default)
+    a = date.today() + timedelta(days=3)
+    offers = service_impl.search(
+        db, arrival=a, departure=a + timedelta(days=2), adults=5, multi_room=True
+    )
+    assert any(o.room_type_id == rt.id for o in offers)
+
+
+def test_multi_room_query_param_reaches_the_service(client, auth_headers, db, setup):
+    rt, _ = setup  # max_occupancy=2 (factory default)
+    a = date.today() + timedelta(days=3)
+    params = {
+        "arrival": a.isoformat(),
+        "departure": (a + timedelta(days=2)).isoformat(),
+        "adults": 5,
+    }
+    without = client.get("/api/availability", params=params, headers=auth_headers).json()
+    assert not any(o["room_type_id"] == rt.id for o in without)
+
+    with_multi = client.get(
+        "/api/availability", params={**params, "multi_room": True}, headers=auth_headers
+    ).json()
+    assert any(o["room_type_id"] == rt.id for o in with_multi)
+
+
 def test_quote_breakdown(db, setup):
     rt, plan = setup
     a = date.today() + timedelta(days=3)

@@ -30,6 +30,7 @@ def search_availability(
     adults: Annotated[int, Query(ge=1)] = 2,
     children: Annotated[int, Query(ge=0)] = 0,
     room_type_id: Annotated[int | None, Query()] = None,
+    multi_room: Annotated[bool, Query()] = False,
 ) -> list[RoomTypeOfferOut]:
     offers = service_impl.search(
         db,
@@ -38,6 +39,7 @@ def search_availability(
         adults=adults,
         children=children,
         room_type_id=room_type_id,
+        multi_room=multi_room,
     )
     return [
         RoomTypeOfferOut(

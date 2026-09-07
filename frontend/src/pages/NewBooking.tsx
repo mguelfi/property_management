@@ -19,6 +19,9 @@ interface Pick {
   label: string;
   total_minor: number;
   currency: string;
+  max_occupancy: number;
+  adults: number;
+  children: number;
 }
 
 export function NewBooking() {
@@ -32,6 +35,7 @@ export function NewBooking() {
   const [searched, setSearched] = useState(false);
   const [picks, setPicks] = useState<Pick[]>([]);
 
+  const partySize = adults + children;
   const datesValid = departure > arrival;
   const availability = useAvailability({
     arrival,
@@ -39,7 +43,12 @@ export function NewBooking() {
     adults,
     children,
     enabled: searched && datesValid,
+    multiRoom: true,
   });
+  // As soon as any returned room type can't sleep the whole party in one
+  // room, switch the picks table into multi-room mode: editable per-room
+  // occupancy plus a running total against the party size.
+  const needsSplit = (availability.data ?? []).some((o) => o.max_occupancy < partySize);
 
   const [guestMode, setGuestMode] = useState<"existing" | "new">("existing");
   const [guestQuery, setGuestQuery] = useState("");
@@ -55,8 +64,18 @@ export function NewBooking() {
   const nights = nightCount(arrival, departure);
   const grandTotal = picks.reduce((s, p) => s + p.total_minor, 0);
   const currency = picks[0]?.currency ?? "";
+  const allocatedAdults = picks.reduce((s, p) => s + p.adults, 0);
+  const allocatedChildren = picks.reduce((s, p) => s + p.children, 0);
 
   function addPick(offer: RoomTypeOffer, rate: RatePlanOffer) {
+    let pickAdults = adults;
+    let pickChildren = children;
+    if (needsSplit || offer.max_occupancy < partySize) {
+      const remainingAdults = Math.max(adults - allocatedAdults, 0);
+      const remainingChildren = Math.max(children - allocatedChildren, 0);
+      pickAdults = Math.min(Math.max(remainingAdults, 1), offer.max_occupancy);
+      pickChildren = Math.min(remainingChildren, Math.max(offer.max_occupancy - pickAdults, 0));
+    }
     setPicks((p) => [
       ...p,
       {
@@ -65,8 +84,15 @@ export function NewBooking() {
         label: `${offer.room_type_name} · ${rate.rate_plan_name}`,
         total_minor: rate.total_minor,
         currency: rate.currency,
+        max_occupancy: offer.max_occupancy,
+        adults: pickAdults,
+        children: pickChildren,
       },
     ]);
+  }
+
+  function updatePick(index: number, changes: Partial<Pick>) {
+    setPicks((p) => p.map((pick, i) => (i === index ? { ...pick, ...changes } : pick)));
   }
 
   async function book() {
@@ -98,8 +124,8 @@ export function NewBooking() {
           rate_plan_id: p.rate_plan_id,
           arrival,
           departure,
-          adults,
-          children,
+          adults: p.adults,
+          children: p.children,
         })),
       });
       toast.ok(`Reservation ${res.reference} created`);
@@ -157,13 +183,27 @@ export function NewBooking() {
           <h2>2 · Rooms</h2>
           {availability.isLoading && <Spinner />}
           <ErrorText error={availability.error} />
-          {availability.data?.length === 0 && <EmptyState>No room types match.</EmptyState>}
+          {needsSplit && !availability.isLoading && (
+            <p className="muted" style={{ fontSize: 12.5 }}>
+              No single room sleeps all {partySize} guests. Add multiple rooms below and adjust
+              each one's occupancy — currently covering {allocatedAdults + allocatedChildren} of{" "}
+              {partySize} guests.
+            </p>
+          )}
+          {availability.data?.length === 0 && !availability.isLoading && (
+            <EmptyState>No room types match.</EmptyState>
+          )}
           {availability.data?.map((offer) => (
             <div className="offer" key={offer.room_type_id}>
               <div className="offer-head">
                 <span>{offer.room_type_name}</span>
-                <span className="muted">
-                  {offer.units_available} available · sleeps {offer.max_occupancy}
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="muted">
+                    {offer.units_available} available · sleeps {offer.max_occupancy}
+                  </span>
+                  {offer.max_occupancy < partySize && (
+                    <span className="badge badge-inquiry">needs multiple rooms</span>
+                  )}
                 </span>
               </div>
               {offer.rate_plans.map((rate) => (
@@ -193,6 +233,8 @@ export function NewBooking() {
               <thead>
                 <tr>
                   <th>Selected</th>
+                  {needsSplit && <th>Adults</th>}
+                  {needsSplit && <th>Children</th>}
                   <th className="num-cell">Total</th>
                   <th />
                 </tr>
@@ -201,6 +243,36 @@ export function NewBooking() {
                 {picks.map((p, i) => (
                   <tr key={i}>
                     <td>{p.label}</td>
+                    {needsSplit && (
+                      <td>
+                        <input
+                          className="input"
+                          type="number"
+                          min={1}
+                          max={p.max_occupancy}
+                          value={p.adults}
+                          style={{ width: 64 }}
+                          onChange={(e) =>
+                            updatePick(i, { adults: Math.max(1, Number(e.target.value)) })
+                          }
+                        />
+                      </td>
+                    )}
+                    {needsSplit && (
+                      <td>
+                        <input
+                          className="input"
+                          type="number"
+                          min={0}
+                          max={p.max_occupancy}
+                          value={p.children}
+                          style={{ width: 64 }}
+                          onChange={(e) =>
+                            updatePick(i, { children: Math.max(0, Number(e.target.value)) })
+                          }
+                        />
+                      </td>
+                    )}
                     <td className="num-cell">{formatMoney(p.total_minor, p.currency)}</td>
                     <td className="num-cell">
                       <button
@@ -216,6 +288,8 @@ export function NewBooking() {
               <tfoot>
                 <tr>
                   <th>Total</th>
+                  {needsSplit && <th />}
+                  {needsSplit && <th />}
                   <th className="num-cell">{formatMoney(grandTotal, currency)}</th>
                   <th />
                 </tr>

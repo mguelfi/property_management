@@ -139,6 +139,7 @@ export function useAvailability(params: {
   adults: number;
   children: number;
   enabled: boolean;
+  multiRoom?: boolean;
 }) {
   return useQuery({
     queryKey: ["availability", params],
@@ -149,6 +150,7 @@ export function useAvailability(params: {
           departure: params.departure,
           adults: params.adults,
           children: params.children,
+          multi_room: params.multiRoom ?? false,
         },
       }),
     enabled: params.enabled,
